@@ -1,6 +1,6 @@
 # Simulateur de placements — Spécification v1
 
-> Statut : **brouillon à valider**. Aucun code ne sera écrit avant validation de ce document.
+> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) codée sur la branche `per-rente`.
 > Dernière mise à jour : 20/11/2026
 
 ---
@@ -47,7 +47,7 @@ Une page web qui simule l'évolution d'un placement financier dans le temps et p
 
 ### 3.4 Brut / net
 - **Brut** : valeur du placement (après frais de gestion, avant impôts et prélèvements sociaux dus à la sortie).
-- **Net** : ce que l'utilisateur toucherait s'il **retirait tout à la fin de la simulation**, après frais, impôts et prélèvements sociaux. Pour le PER, le net **inclut l'économie d'impôt** obtenue à l'entrée.
+- **Net** : ce que l'utilisateur toucherait s'il **retirait tout à la fin de la simulation**, après frais, impôts et prélèvements sociaux. Pour le PER, le net **inclut l'économie d'impôt** obtenue à l'entrée et, en sortie rente ou mixte, le total des rentes nettes perçues jusqu'à l'âge de fin de simulation (voir 4.4).
 - Un **interrupteur Brut / Net** bascule tout l'affichage (synthèse, graphique, tableau).
 
 ### 3.5 Inflation (hors v1, prévue dans l'architecture)
@@ -147,8 +147,19 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 | Frais sur versements, frais de gestion | 0 % ; 0,6 %/an |
 | Répartition fonds euros / UC + profil de risque | comme 4.3 |
 | Mode de sortie | capital / rente / mixte (% en capital) |
-| Taux de conversion en rente | 3,5 % du capital par an (fourchette constatée à 64 ans : 3,2 à 4 %) |
 | Prélèvements sociaux sur les gains | 18,6 % (taux 2026 ; l'application au PER assurantiel est débattue, d'où le paramètre) |
+
+**Paramètres de la rente** (visibles dans les paramètres principaux dès que la sortie n'est pas « Capital »)
+| Paramètre | Défaut |
+|---|---|
+| Méthode de calcul | table de mortalité / taux de conversion |
+| Espérance de vie actuelle (âge), pour une personne arrivée à la retraite | 86 ans (moyenne hommes/femmes INSEE 2025 à 60 ans : 23,9 et 27,9 ans de vie restante) |
+| Table de mortalité garantie à la souscription | non |
+| Hausse de l'espérance de vie | +1 an par décennie (tendance INSEE 2000-2025) |
+| Taux technique | 0,5 % |
+| Frais sur arrérages | 2 % de chaque rente |
+| Taux de conversion (méthode « taux de conversion ») | 3,5 % du capital par an (fourchette constatée à 64 ans : 3,1 à 4,3 %) |
+| Âge de fin de simulation (hypothèse de durée de vie) | 0 = l'espérance de vie retenue pour le calcul (86 ans, ou plus si la table n'est pas garantie) |
 
 **Règles**
 - La durée de la simulation est l'âge de départ moins l'âge actuel (calculée, pas saisie).
@@ -161,13 +172,53 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
   - versements déduits : impôt sur le revenu au barème (TMI à la retraite), pas de prélèvements sociaux ;
   - gains : flat tax (12,8 % + prélèvements sociaux) ;
   - versements non déduits : exonérés, seuls les gains sont imposés.
-- **Sortie en rente** :
-  - rente annuelle = capital converti × taux de conversion ;
+- **Sortie en rente** : voir 4.4.1 (calcul) et 4.4.2 (phase de versement).
+- **Fiscalité de la rente** (inchangée) :
   - versements déduits : rente imposée au barème après abattement de 10 %, + prélèvements sociaux sur une fraction selon l'âge (régime des rentes viagères à titre onéreux) ;
   - versements non déduits : seule une fraction de la rente est imposée, selon l'âge au premier versement ;
-  - fraction imposable selon l'âge au premier versement : 70 % avant 50 ans, 50 % de 50 à 59 ans, 40 % de 60 à 69 ans, 30 % à 70 ans et plus ;
-  - affichage : rente annuelle brute et nette, et nombre d'années pour récupérer le capital.
-- **Net du PER** = net de sortie + économies d'impôt cumulées à l'entrée.
+  - fraction imposable selon l'âge au premier versement : 70 % avant 50 ans, 50 % de 50 à 59 ans, 40 % de 60 à 69 ans, 30 % à 70 ans et plus.
+- **Net du PER** = capital net perçu à la retraite + total des rentes nettes perçues jusqu'à l'âge de fin de simulation + économies d'impôt cumulées à l'entrée.
+
+#### 4.4.1 Calcul de la rente
+
+Les assureurs calculent la rente avec une **table de mortalité réglementaire** (TGF05, unisexe). L'espérance de vie progresse (à 60 ans : de 20,4 à 23,9 ans pour les hommes et de 25,6 à 27,9 ans pour les femmes entre 2000 et 2025, source INSEE), et les tables sont révisées en conséquence. Selon le contrat, la rente est calculée avec :
+- la **table en vigueur à la souscription**, si le contrat la garantit : les révisions ultérieures ne s'appliquent pas, ce qui est plus favorable ;
+- la **table en vigueur à la liquidation** sinon : la rente baisse si l'espérance de vie a augmenté entre-temps.
+
+**Durée retenue** (n, en années après le départ) :
+- table garantie : n = espérance de vie actuelle − âge de départ (86 − 64 = 22 ans) ;
+- table non garantie : n = espérance de vie actuelle + hausse de l'espérance de vie × années jusqu'à la retraite − âge de départ (+1 an par décennie, à 40 ans pour un départ à 64 ans : 86 + 2,4 − 64 = 24,4 ans) ;
+- l'espérance de vie à saisir est celle d'une personne **arrivée à l'âge de la retraite**, plus élevée que l'espérance de vie à la naissance ; une aide sous le champ le précise ;
+- si l'âge de départ dépasse l'espérance de vie saisie, la durée est ramenée à 1 an et un avertissement s'affiche.
+
+**Méthode « table de mortalité »** :
+- rente annuelle = capital converti × t / (1 − (1 + t)^−n) × (1 − frais sur arrérages), avec t le taux technique (si t = 0 : capital converti / n) ;
+- la synthèse affiche la durée retenue et, si la table n'est pas garantie, la rente qu'on aurait eue avec une table garantie, pour montrer l'effet de ce choix.
+
+**Méthode « taux de conversion »** (devis d'assureur) :
+- rente annuelle = capital converti × taux de conversion × (1 − frais sur arrérages).
+
+**L'espérance de vie ne sert qu'au calcul du montant.** La rente est viagère : elle est versée jusqu'au décès, quelle que soit sa date. Si l'on vit plus longtemps que prévu, l'assureur continue de payer ; si l'on décède avant, il garde le capital (mutualisation).
+
+La rente est **fixe** (même montant chaque année). Le capital converti est la part du capital non versée en capital (100 % en sortie rente, 100 % − part en capital en sortie mixte).
+
+#### 4.4.2 Phase de versement
+
+La simulation continue après la retraite, **jusqu'à l'âge de fin de simulation**, une hypothèse de durée de vie indépendante du calcul de la rente. Par défaut, c'est l'espérance de vie retenue pour le calcul (exemple : 86 + 2,4 = 88,4 ans, soit 88 ans et 5 mois) ; l'utilisateur peut saisir un autre âge pour voir le cas d'une vie plus courte ou plus longue.
+- Rentes versées chaque mois (1/12 de la rente annuelle), imposées selon les règles ci-dessus.
+- **Graphique** : après la retraite, la courbe du PER montre le **cumul perçu**, qui augmente au fil des rentes : en vue brute, capital versé à la retraite + rentes brutes cumulées ; en vue nette, capital net + rentes nettes cumulées + économies d'impôt. On n'affiche pas de « capital restant », qui tomberait à 0 à l'espérance de vie alors que la rente continue. La courbe chute donc à la retraite (le capital converti est cédé à l'assureur) : une note sous le graphique l'explique.
+- **Tableau** : pour les années de versement, colonnes rente brute, impôts et prélèvements, rente nette, cumul brut, cumul net.
+- **Synthèse** : 1re rente annuelle et mensuelle, brute et nette ; durée retenue pour le calcul ; total des rentes nettes perçues à l'âge de fin ; **âge à partir duquel les rentes nettes cumulées dépassent le capital converti** (le seuil au-delà duquel la rente a rapporté plus que le capital) ; un avertissement si l'âge de fin est inférieur à l'âge de départ.
+- **Sortie en capital** : pas de phase de versement, mais la carte indique à titre de comparaison la rente mensuelle nette qu'aurait donnée une sortie en rente.
+- Le rendement annuel net (TRI) intègre les rentes perçues.
+
+#### 4.4.3 Bouton « verser le maximum déductible »
+
+- Affiché quand « Versements déduits du revenu imposable » est coché, sous la forme d'un **petit bouton « Max »** placé sur la ligne du libellé « Versement régulier », à droite, pour ne pas alourdir le formulaire.
+- Sous le champ, une ligne d'aide indique ce qu'il donnera : « Max déductible : 392 €/mois (plafond de 4 710 €/an) ».
+- Plafond utilisé : celui de l'avis d'impôt s'il est saisi, sinon 10 % des revenus professionnels bornés (4 710 € à 37 680 €), sinon le plancher de 4 710 €.
+- Un clic remplit le champ « Versement régulier » : plafond ÷ 12 arrondi à l'euro inférieur en mensuel, plafond entier en annuel. Le champ reste modifiable et ne se recalcule pas tout seul si les revenus changent.
+- Le capital initial n'est pas déduit du plafond de la 1re année : s'il le fait dépasser, l'avertissement habituel s'affiche.
 
 ### 4.5 Profils de risque des unités de compte (hypothèses, modifiables)
 
@@ -254,6 +305,7 @@ tests/           tests Vitest du moteur
 - PEA, CTO, LEP et autres placements
 - Assurance vie : versements après 70 ans, succession, option barème, arbitrages
 - Taux variables par période
+- Rente PER : revalorisation annuelle, réversion au conjoint, annuités garanties, rente par paliers, table de mortalité complète par âge (on utilise une durée moyenne)
 
 ## 9. Points ouverts
 

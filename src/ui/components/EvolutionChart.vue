@@ -99,6 +99,9 @@ const options = computed<ChartOptions<'line'>>(() => ({
   },
 }))
 
+/** Un PER verse une rente : on explique la chute de sa courbe à la retraite. */
+const showAnnuityNote = computed(() => props.items.some(({ run }) => run.result.annuity && !run.result.annuity.indicative))
+
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 const chart = shallowRef<ChartJS<'line', XY[]>>()
 
@@ -123,6 +126,7 @@ onBeforeUnmount(() => chart.value?.destroy())
   <div class="chart">
     <canvas ref="canvas" role="img" :aria-label="t('chart.title')"></canvas>
   </div>
+  <p v-if="showAnnuityNote" class="hint chart-note">{{ t('chart.annuityNote') }}</p>
 </template>
 
 <style scoped>
@@ -149,6 +153,10 @@ onBeforeUnmount(() => chart.value?.destroy())
   mask-image: radial-gradient(ellipse 70% 75% at 50% 50%, black 10%, transparent 80%);
   opacity: 0.6;
   pointer-events: none;
+}
+.chart-note {
+  margin-top: var(--space-md);
+  max-width: 75ch;
 }
 @media (max-width: 640px) {
   .chart {

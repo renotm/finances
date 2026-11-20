@@ -2,11 +2,25 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ParamDef, ParamValue, SimParams } from '../../engine/types'
+import { useFormat } from '../format'
 import YearMonthInput from './YearMonthInput.vue'
 
 const props = defineProps<{ def: ParamDef; params: SimParams; idPrefix: string }>()
 const emit = defineEmits<{ update: [key: string, value: ParamValue] }>()
 const { t, te } = useI18n()
+const f = useFormat()
+
+const action = computed(() => (props.def.action && props.def.action.visible(props.params) ? props.def.action : null))
+const actionHint = computed(() => {
+  if (!action.value) return ''
+  const { key, amounts } = action.value.hint(props.params)
+  const formatted = Object.fromEntries(Object.entries(amounts).map(([k, v]) => [k, f.eur(v)]))
+  return t(`actions.${action.value.id}.${key}`, formatted)
+})
+
+function runAction() {
+  if (action.value) emit('update', props.def.key, action.value.value(props.params))
+}
 
 const id = computed(() => `${props.idPrefix}-${props.def.key}`)
 const value = computed(() => props.params[props.def.key] as ParamValue)
@@ -21,6 +35,7 @@ const unitLabel = computed(() => {
     case 'years':
     case 'months':
     case 'age':
+    case 'yearsPerDecade':
       return t(`units.${props.def.unit}`)
     default:
       return ''
@@ -57,7 +72,13 @@ function onSelect(e: Event) {
     </template>
 
     <template v-else>
-      <label :for="id">{{ t(`params.${def.key}`) }}</label>
+      <div v-if="action" class="field__label-row">
+        <label :for="id">{{ t(`params.${def.key}`) }}</label>
+        <button type="button" class="btn-mini" :title="actionHint" @click="runAction">
+          {{ t(`actions.${action.id}.button`) }}
+        </button>
+      </div>
+      <label v-else :for="id">{{ t(`params.${def.key}`) }}</label>
 
       <YearMonthInput
         v-if="def.type === 'yearMonth'"
@@ -86,6 +107,7 @@ function onSelect(e: Event) {
       </div>
     </template>
 
+    <p v-if="actionHint" class="hint">{{ actionHint }}</p>
     <p v-if="te(hintKey)" class="hint">{{ t(hintKey) }}</p>
   </div>
 </template>

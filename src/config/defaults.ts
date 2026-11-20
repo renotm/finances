@@ -61,8 +61,17 @@ export const config = {
     euroFee: 0.6,
     ucFee: 0.6,
     capitalShare: 50,
-    conversionRate: 3.5,
     socialRate: 18.6,
+    /** Rente viagère (SPEC §4.4.1). */
+    annuity: {
+      /** Espérance de vie actuelle (âge) d'une personne arrivée à la retraite : moyenne H/F INSEE 2025. */
+      lifeExpectancy: 86,
+      /** Hausse de l'espérance de vie, en années par décennie (tendance INSEE 2000-2025). */
+      lifeGainPerDecade: 1,
+      technicalRate: 0.5,
+      arrearsFee: 2,
+      conversionRate: 3.5,
+    },
     /** Plafond de déduction salarié : 10 % des revenus, borné (valeurs 2026, PASS 2025). */
     ceilingRate: 10,
     ceilingFloor: 4710,

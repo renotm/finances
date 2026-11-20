@@ -20,6 +20,7 @@ watch(
 const current = computed(() => props.items[active.value])
 const showSavings = computed(() => current.value?.run.result.years.some((y) => y.taxSavings > 0))
 const showWithdrawals = computed(() => current.value?.run.result.years.some((y) => y.withdrawals > 0))
+const showAnnuity = computed(() => current.value?.run.result.years.some((y) => y.annuityGross > 0))
 </script>
 
 <template>
@@ -51,8 +52,10 @@ const showWithdrawals = computed(() => current.value?.run.result.years.some((y) 
             <th>{{ t('table.fees') }}</th>
             <th>{{ t('table.taxes') }}</th>
             <th v-if="showSavings">{{ t('table.taxSavings') }}</th>
-            <th>{{ t('table.endValue') }}</th>
-            <th>{{ t('table.netValue') }}</th>
+            <th v-if="showAnnuity">{{ t('table.annuityGross') }}</th>
+            <th v-if="showAnnuity">{{ t('table.annuityNet') }}</th>
+            <th>{{ showAnnuity ? t('table.endValueAnnuity') : t('table.endValue') }}</th>
+            <th>{{ showAnnuity ? t('table.netValueAnnuity') : t('table.netValue') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +67,8 @@ const showWithdrawals = computed(() => current.value?.run.result.years.some((y) 
             <td>{{ f.eur(y.fees) }}</td>
             <td>{{ f.eur(y.taxes) }}</td>
             <td v-if="showSavings">{{ f.eur(y.taxSavings) }}</td>
+            <td v-if="showAnnuity">{{ f.eur(y.annuityGross) }}</td>
+            <td v-if="showAnnuity">{{ f.eur(y.annuityNet) }}</td>
             <td class="strong">{{ f.eur(y.endValue) }}</td>
             <td>{{ f.eur(y.netValue) }}</td>
           </tr>

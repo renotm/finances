@@ -53,14 +53,28 @@ function duration(run: SlotResult): string {
       </dl>
 
       <div v-if="run.result.annuity" class="card__annuity">
-        <h4>{{ t('summary.annuity') }}</h4>
+        <h4>{{ run.result.annuity.indicative ? t('summary.annuityIndicative') : t('summary.annuity') }}</h4>
         <dl class="card__list">
-          <div><dt>{{ t('summary.annuityGross') }}</dt><dd>{{ f.eur(run.result.annuity.grossYearly) }}</dd></div>
-          <div><dt>{{ t('summary.annuityNet') }}</dt><dd>{{ f.eur(run.result.annuity.netYearly) }}</dd></div>
           <div><dt>{{ t('summary.annuityMonthly') }}</dt><dd>{{ f.eur(run.result.annuity.netYearly / 12) }}</dd></div>
-          <div v-if="run.result.annuity.breakEvenYears">
-            <dt>{{ t('summary.breakEven') }}</dt>
-            <dd>{{ t('summary.yearsValue', { n: f.num(run.result.annuity.breakEvenYears) }) }}</dd>
+          <template v-if="!run.result.annuity.indicative">
+            <div><dt>{{ t('summary.annuityGross') }}</dt><dd>{{ f.eur(run.result.annuity.grossYearly) }}</dd></div>
+            <div><dt>{{ t('summary.annuityNet') }}</dt><dd>{{ f.eur(run.result.annuity.netYearly) }}</dd></div>
+            <div>
+              <dt>{{ t('summary.annuityCalc') }}</dt>
+              <dd>{{ t('summary.annuityCalcValue', { n: f.num(run.result.annuity.calcYears), age: f.num(run.result.annuity.calcAge) }) }}</dd>
+            </div>
+            <div v-if="run.result.annuity.guaranteedNetYearly !== null">
+              <dt>{{ t('summary.annuityGuaranteed') }}</dt>
+              <dd>{{ f.eur(run.result.annuity.guaranteedNetYearly / 12) }}</dd>
+            </div>
+            <div v-if="run.result.annuity.totalNet !== null && run.result.annuity.endAge !== null">
+              <dt>{{ t('summary.annuityTotal', { age: f.num(run.result.annuity.endAge) }) }}</dt>
+              <dd class="pos">{{ f.eur(run.result.annuity.totalNet) }}</dd>
+            </div>
+          </template>
+          <div v-if="run.result.annuity.breakEvenAge !== null">
+            <dt>{{ t('summary.breakEvenAge') }}</dt>
+            <dd>{{ t('summary.ageValue', { n: f.num(run.result.annuity.breakEvenAge) }) }}</dd>
           </div>
         </dl>
       </div>

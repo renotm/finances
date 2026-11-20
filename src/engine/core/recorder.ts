@@ -2,7 +2,7 @@ import type { Annuity, Point, SimResult, Warning, YearRow } from '../types'
 import { addMonths, formatYM, toDecimalYear, type YM } from './dates'
 import { annualIrr, type Flow } from './irr'
 
-type SumField = 'deposits' | 'withdrawals' | 'gains' | 'fees' | 'taxes' | 'taxSavings'
+type SumField = 'deposits' | 'withdrawals' | 'gains' | 'fees' | 'taxes' | 'taxSavings' | 'annuityGross' | 'annuityNet'
 
 /**
  * Collecte, au fil de la simulation, les lignes annuelles, les points du graphique,
@@ -26,7 +26,19 @@ export class Recorder {
   private row(year: number): YearRow {
     let r = this.rows.get(year)
     if (!r) {
-      r = { year, deposits: 0, withdrawals: 0, gains: 0, fees: 0, taxes: 0, taxSavings: 0, endValue: 0, netValue: 0 }
+      r = {
+        year,
+        deposits: 0,
+        withdrawals: 0,
+        gains: 0,
+        fees: 0,
+        taxes: 0,
+        taxSavings: 0,
+        annuityGross: 0,
+        annuityNet: 0,
+        endValue: 0,
+        netValue: 0,
+      }
       this.rows.set(year, r)
     }
     return r
@@ -77,6 +89,16 @@ export class Recorder {
     this.netFlows.push({ i: i + 1, amount: v })
   }
 
+  /** Rente versée à la fin du mois i : montant brut et impôts prélevés. */
+  annuity(i: number, year: number, gross: number, tax: number) {
+    if (gross <= 0) return
+    this.add(year, 'annuityGross', gross)
+    this.add(year, 'annuityNet', gross - tax)
+    this.add(year, 'taxes', tax)
+    this.grossFlows.push({ i: i + 1, amount: gross })
+    this.netFlows.push({ i: i + 1, amount: gross - tax })
+  }
+
   warn(code: string, params?: Record<string, string | number>) {
     const key = code + JSON.stringify(params ?? {})
     if (!this.warnings.some((w) => w.code + JSON.stringify(w.params ?? {}) === key)) {
@@ -106,6 +128,7 @@ export class Recorder {
    * @param months durée de la simulation en mois
    * @param exitTaxes impôts dus en cas de retrait total à la fin
    * @param netFinalFlow montant encaissé à la fin dans la vue nette (hors flux déjà comptés en cours de route)
+   * @param grossFinalFlow idem en vue brute (par défaut la valeur finale brute)
    */
   finish(args: {
     months: number
@@ -113,11 +136,12 @@ export class Recorder {
     finalNet: number
     exitTaxes: number
     netFinalFlow: number
+    grossFinalFlow?: number
     annuity?: Annuity
   }): SimResult {
     const years = [...this.rows.values()].sort((a, b) => a.year - b.year)
     const sum = (f: SumField) => years.reduce((acc, r) => acc + r[f], 0)
-    const grossFlows = [...this.grossFlows, { i: args.months, amount: args.finalGross }]
+    const grossFlows = [...this.grossFlows, { i: args.months, amount: args.grossFinalFlow ?? args.finalGross }]
     const netFlows = [...this.netFlows, { i: args.months, amount: args.netFinalFlow }]
 
     return {
