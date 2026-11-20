@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.log
+.hallmark/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json

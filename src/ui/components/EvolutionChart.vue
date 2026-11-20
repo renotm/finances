@@ -128,7 +128,27 @@ onBeforeUnmount(() => chart.value?.destroy())
 <style scoped>
 .chart {
   position: relative;
+  isolation: isolate;
   height: 360px;
+}
+/* La règle du temps imprimée dans le fond, qui s'efface depuis le centre du graphique. */
+.chart::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--space-md) * -1);
+  z-index: -1;
+  --beat: 40px;
+  --row: 14px;
+  background-image:
+    linear-gradient(to right, var(--grid-bar) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-beat) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-16) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-row) 1px, transparent 1px);
+  background-size: calc(var(--beat) * 4) 100%, var(--beat) 100%, calc(var(--beat) / 4) 100%, 100% var(--row);
+  -webkit-mask-image: radial-gradient(ellipse 70% 75% at 50% 50%, black 10%, transparent 80%);
+  mask-image: radial-gradient(ellipse 70% 75% at 50% 50%, black 10%, transparent 80%);
+  opacity: 0.6;
+  pointer-events: none;
 }
 @media (max-width: 640px) {
   .chart {

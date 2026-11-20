@@ -32,7 +32,7 @@ function setYear(e: Event) {
 <style scoped>
 .ym {
   display: grid;
-  grid-template-columns: 1fr 5.5rem;
-  gap: 0.4rem;
+  grid-template-columns: 1fr 6.5rem;
+  gap: var(--space-xs);
 }
 </style>

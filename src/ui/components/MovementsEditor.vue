@@ -62,19 +62,24 @@ function setAmount(m: Movement, e: Event) {
 <style scoped>
 .movements__list {
   list-style: none;
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-xs);
   padding: 0;
   display: grid;
-  gap: 0.6rem;
+  gap: var(--space-sm);
 }
+/* Chaque mouvement est un clip posé sur la feuille, pas une carte. */
 .movement {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 0.4rem;
-  padding: 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-radius: var(--radius-inner);
+  background: linear-gradient(var(--color-paper-2), var(--color-paper-3));
+  box-shadow: inset 0 0 0 1px var(--shade-1), inset 0 1px 0 var(--hi);
+}
+.movements > p {
+  padding-inline: var(--space-2xs);
+  font-size: var(--text-sm);
 }
 .movement > :first-child,
 .movement > select,
