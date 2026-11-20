@@ -440,6 +440,52 @@ Valeurs par défaut d'une nouvelle personne : celles de la config (40 ans, dépa
 - Une clé `simulateur.profils` contient `{ version, activeId, persons: [...] }`, versionnée pour pouvoir faire évoluer le format.
 - Hors périmètre : mémoriser les simulations (colonnes ouvertes), encours existants des placements, synchronisation entre appareils, mutualisation des plafonds PER du couple, évolution des revenus dans le temps.
 
+### 5.6 Page « Méthodologie et sources » (validée, livrée sur la branche `methodologie`)
+
+Une page de référence qui permet de comprendre, vérifier et interpréter les résultats. Ce n'est pas une FAQ : chaque règle est énoncée, chiffrée, sourcée, et ses limites sont dites.
+
+- **Langue** : contenu en français seulement. En anglais, le lien et le titre sont traduits, et une note en tête indique que la méthodologie n'existe qu'en français.
+- **Branche** : `methodologie`, créée depuis `fiabilisation`.
+
+**Accès**
+- Lien **« Méthodologie »** dans l'en-tête, à côté de « Mon profil », adresse `#/methodologie` (même navigation par l'URL que les profils). Un lien ramène au simulateur.
+- Ancres par section (`#/methodologie/fiscalite`…) pour pouvoir citer un passage.
+
+**Présentation**
+- Thème Bloom existant, sans nouveau composant graphique : colonne de lecture unique, table des matières en tête (et collante sur grand écran), titres numérotés.
+- Formules en texte typographié (pas de bibliothèque mathématique), chacune suivie d'un exemple chiffré vérifiable à la main.
+- Pas d'illustration décorative ni de texte promotionnel.
+
+**Plan**
+1. Principes : objectif, simulation mensuelle, conventions (dates, quinzaines, 31 décembre), brut / net / gains / économies d'impôt, date de référence des règles (revenus 2025, vérifiées le …).
+2. Placements : Livret A et LDDS (une section commune, plafonds distincts), livret bancaire, assurance vie, PER. Pour chacun : fonctionnement, avantages et inconvénients, plafonds, disponibilité, versements et retraits, intérêts et capitalisation, frais, fiscalité, risques, particularités de la simulation.
+3. Fiscalité : barème, TMI, quotient familial et plafonnement, décote, PFU, prélèvements sociaux (17,2 % / 18,6 %), abattements (assurance vie, pensions), déduction PER et report des plafonds, sorties PER en capital et en rente, système du quotient. Un exemple montre pourquoi l'économie d'impôt diffère de « versement × TMI » (changement de tranche, décote, plafonnement).
+4. Comparaison : rendement annualisé et TRI (et ses cas « non pertinent » / « non calculable »), capital net disponible, effort d'épargne, économies d'impôt cumulées et réinvesties, inflation et gain en euros d'aujourd'hui, rente contre capital, scénarios bas / haut. Conditions d'une comparaison valable (même durée, même effort) et ses limites.
+5. Limites et approximations : reprise des hypothèses de FISCAL_RULES.md et des hors-périmètres de la SPEC, incertitude des rendements, stabilité supposée de la fiscalité, rentes (table TGF05 à 0 %, décalage d'âge), clauses de contrat non modélisées. Chaque hypothèse est présentée comme telle.
+6. Sources : tableau par règle avec titre du document, lien direct, règle concernée, date d'application, date de dernière vérification. **Sources institutionnelles uniquement** (impots.gouv.fr, BOFiP, Légifrance, Service-Public, economie.gouv.fr, AMF, Banque de France, Insee). Pour chaque règle aujourd'hui appuyée sur des sites spécialisés (FISCAL_RULES.md « concordante »), une source institutionnelle est recherchée ; à défaut, la source secondaire est affichée **et marquée comme telle**. Aucune référence n'est inventée : chaque lien est ouvert et vérifié avant d'être cité.
+7. Fiabilité : ce qui a réellement été fait (audit fonctionnel et financier, vérification des règles, calculs indépendants, tests automatisés et de non-régression, cas limites), avec le nombre de tests. Version du simulateur et date de mise à jour de la méthodologie. Aucune certification revendiquée.
+8. Avertissement : outil pédagogique d'aide à la décision, ne remplace pas un conseil financier ou fiscal personnalisé.
+
+**Cohérence avec le moteur**
+- Les montants cités (barème, plafonds, taux, abattements, frais et rendements par défaut) sont **lus dans `src/config/fiscal.ts` et `src/config/defaults.ts`**, jamais recopiés : un changement de paramètre met la page à jour.
+- Les exemples chiffrés sont **calculés par les fonctions du moteur** au rendu (impôt, économie d'impôt, rachat d'assurance vie, prix de la rente…). Un test vérifie chaque exemple contre un calcul fait à la main, si bien qu'un écart entre la page et le moteur fait échouer les tests.
+- Version : celle de `package.json`, injectée au build ; date de la méthodologie : constante dans la config.
+
+**Précisions de la validation**
+- Les références sont citées **auprès des règles** (lien court entre parenthèses, « source secondaire » le cas échéant), en plus du tableau des sources.
+- Les **incertitudes fiscales restantes** sont listées explicitement (§5.1 de la page) : assiette de l'impôt des rachats d'assurance vie, cas particuliers du quotient familial, stabilité des règles.
+- Les exemples sont **indépendants du profil actif** : données fixes, valeurs par défaut de la config.
+- Les tests ne sont **pas présentés comme une garantie** d'exactitude ; aucune certification n'est revendiquée.
+- Sources réutilisées de FISCAL_RULES.md, chaque lien rouvert le 20/11/2026 ; une seule source secondaire (tarif TGF05, Guide de la taxe).
+
+**Réalisation**
+- `src/methodology/examples.ts` : exemples calculés par le moteur ; `src/methodology/sources.ts` : références (titre, lien, règle, date d'application, date de vérification).
+- `src/ui/methodology/` : page et sections, chargées à la demande (le simulateur ne charge pas la page tant qu'elle n'est pas ouverte).
+- Styles ajoutés à `src/style.css` avec les seules variables du thème Bloom.
+- `tests/methodology.test.ts` : exemples comparés à des calculs faits à la main, rendu de la page, citations des sources.
+
+**Hors périmètre** : aucune modification du comportement des simulations, aucune nouvelle dépendance.
+
 ## 6. Architecture
 
 ```
@@ -466,6 +512,7 @@ tests/           tests Vitest du moteur
 - `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
 - `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
 - `tests/final-fix.test.ts` : corrections finales (déblocage PER l'année du versement, rachat d'assurance vie en perte, abattement sur les pensions par pensionné, résolution de la détection des TRI multiples, paramètres fiscaux vérifiés sur les sources officielles).
+- `tests/methodology.test.ts` : exemples chiffrés de la page « Méthodologie et sources », rendu de la page, sources.
 - `tests/ui.test.ts` : les montants des cartes, du tableau et des séries du graphique sont exactement ceux du moteur (rendu serveur des composants).
 - Sous Windows, lancer Vitest depuis `D:\Perso\finances` (lettre de lecteur en majuscule).
 

@@ -39,6 +39,11 @@ const en: typeof fr = {
     effort: 'The investments compared do not require the same savings effort ({list}): compare returns and gains in today\'s euros instead.',
     horizon: 'The investments compared do not have the same duration, in years ({list}): their final values are not comparable. The gain in today\'s euros narrows the gap without removing it: it ignores what the money would earn after the shorter investment ends, liquidity and risk. To compare, simulate the investments over the same duration.',
   },
+  methodology: {
+    link: 'Methodology',
+    title: 'Methodology and sources',
+    frenchOnly: 'This methodology is only available in French: it documents French tax rules and cites French official sources.',
+  },
   tmi: {
     profileOption: 'From profile',
     until: '{rate} until {year}',

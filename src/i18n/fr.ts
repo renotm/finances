@@ -37,6 +37,11 @@ export default {
     effort: 'Les placements comparés ne demandent pas le même effort d\'épargne ({list}) : comparez plutôt les rendements et les gains en euros d\'aujourd\'hui.',
     horizon: 'Les placements comparés n\'ont pas la même durée, en années ({list}) : leurs valeurs finales ne sont pas comparables. Le gain en euros d\'aujourd\'hui réduit l\'écart sans le supprimer : il ignore ce que deviendrait l\'argent après la fin du placement le plus court, la disponibilité des fonds et le risque. Pour comparer, simulez les placements sur une même durée.',
   },
+  methodology: {
+    link: 'Méthodologie',
+    title: 'Méthodologie et sources',
+    frenchOnly: '',
+  },
   tmi: {
     profileOption: 'Selon le profil',
     until: '{rate} jusqu\'en {year}',

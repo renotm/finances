@@ -11,6 +11,8 @@ import { fiscal } from './fiscal'
 export const config = {
   /** Date de dernière vérification des valeurs, affichée en pied de page. */
   updatedAt: '2026-11-20',
+  /** Date de dernière mise à jour de la page « Méthodologie et sources » (SPEC §5.6). */
+  methodologyUpdatedAt: '2026-11-20',
 
   /** Paramètres d'épargne proposés à l'ouverture d'un placement. */
   simulation: {

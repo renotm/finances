@@ -36,7 +36,7 @@ Ces différences intègrent automatiquement les changements de tranche, le plafo
 Impôt d'un revenu exceptionnel E : coef × [impôt(R + E / coef) − impôt(R)], avec coef = 4. Le contribuable n'opte que si c'est favorable : le moteur retient le minimum entre l'imposition directe et le quotient.
 Applicable à la part du capital PER issue de versements déduits, quel que soit son montant (BOFiP BOI-RSA-PENS-30-10-20, cité par Hagnéré Patrimoine et ERES).
 
-### 1.7 Abattement de 10 % sur les pensions (CGI art. 158-5 a) — concordante
+### 1.7 Abattement de 10 % sur les pensions (CGI art. 158-5 a) — officielle (Service-Public F415, vérifié le 20/11/2026)
 10 % des pensions, au minimum 454 € par pensionné (sans dépasser la pension), au maximum 4 439 € par foyer (revenus 2025).
 - Le plancher s'apprécie **pour chaque pensionné**, le plafond pour le foyer : abattement du foyer = min(Σ min(pension, max(10 % × pension, 454 €)) ; 4 439 €).
 - L'impôt supplémentaire d'une rente PER se calcule sur la hausse des pensions nettes imposables du foyer, la rente s'ajoutant aux pensions du titulaire (`taxablePensionIncrement`). Si le profil indique les pensions du conjoint, le plancher du conjoint n'est pas reporté sur la rente : avec une pension de 1 000 € (abattement 454 €) et une rente de 2 000 €, l'abattement du titulaire reste 454 € et toute la rente est imposable, alors qu'un calcul sur les pensions agrégées du foyer en abattrait 10 %.
@@ -110,6 +110,15 @@ Le TRI est la racine de la valeur actuelle des flux mensuels. Le moteur évalue 
 
 ## 7. Valeur actualisée et horizons différents — hypothèse de lecture
 Le gain en euros d'aujourd'hui (flux actualisés à l'inflation) ne suffit pas à comparer des placements de durées différentes : il ne dit rien de ce que deviendrait l'argent après la fin du placement le plus court, ni de la disponibilité des fonds et du risque. Le comparateur le signale et recommande de simuler les placements sur une même durée.
+
+## Références de la page « Méthodologie et sources »
+Les liens directs vers les sources, rouverts le 20/11/2026, sont tenus à jour dans `src/methodology/sources.ts` et affichés sur la page `#/methodologie`. Vérifications de cette date :
+- BOFiP BOI-IR-LIQ-20-20-20 : seule la version du 07/04/2026 donne les montants des revenus 2025 (1 807 €, 4 262 €) ; la version de 2025 donne encore 1 791 € et 4 224 €.
+- BOFiP BOI-RPPM-RCM-20-10-20-50 : l'adresse datée ne répond plus ; l'adresse non datée (3951-PGP) est citée.
+- Service-Public F34982 (PER) confirme le plafond (10 %, 4 710 € à 37 680 €), le report sur 5 ans des plafonds nés à partir de 2026 (3 ans pour 2024 et 2025), la fin de la déduction à 70 ans et la fiscalité des sorties.
+- Service-Public F2329 confirme 18,6 % en 2026 et le maintien de l'assurance vie à 17,2 %.
+- Rentes à titre onéreux (CGI art. 158, 6) et système du quotient (CGI art. 163-0 A) : textes Légifrance en vigueur.
+- Le tarif TGF05 à 0 % reste une source secondaire (Guide de la taxe), faute de publication institutionnelle.
 
 ## Points restant à confirmer
 - Assiette de l'impôt sur le revenu des rachats d'assurance vie : produits nets ou bruts des prélèvements sociaux annuels déjà prélevés sur le fonds euros (§4, C23).

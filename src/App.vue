@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { config } from './config/defaults'
 import { runSimulation } from './engine/run'
@@ -13,17 +13,27 @@ import SummaryCards from './ui/components/SummaryCards.vue'
 import { applyProfile, createSlot, MAX_SLOTS, resetSlot, switchProduct, type Slot } from './ui/slots'
 import { comparisonDiffs } from './ui/comparison'
 
+/** Page de méthodologie chargée à la demande : elle ne pèse pas sur le chargement du simulateur. */
+const MethodologyPage = defineAsyncComponent(() => import('./ui/methodology/MethodologyPage.vue'))
+
 const { t, locale } = useI18n()
 
-/** Navigation par l'URL : `#/profil` affiche la page des profils, tout le reste le simulateur. */
+/**
+ * Navigation par l'URL : `#/profil` affiche la page des profils, `#/methodologie` (et `#/methodologie/<section>`)
+ * la méthodologie, tout le reste le simulateur.
+ */
 const hash = ref(window.location.hash)
 const onHashChange = () => {
   hash.value = window.location.hash
-  window.scrollTo(0, 0)
+  if (!methodologySection.value) window.scrollTo(0, 0)
 }
 window.addEventListener('hashchange', onHashChange)
 onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
 const onProfilePage = computed(() => hash.value === '#/profil')
+const onMethodologyPage = computed(() => hash.value === '#/methodologie' || hash.value.startsWith('#/methodologie/'))
+/** Section de la méthodologie visée par l'URL (ancre), défilement géré par la page. */
+const methodologySection = computed(() => (hash.value.startsWith('#/methodologie/') ? hash.value.slice('#/methodologie/'.length) : ''))
+const onSimulator = computed(() => !onProfilePage.value && !onMethodologyPage.value)
 
 /** Inflation supposée (%), pour le rendement réel et la valeur actuelle (SPEC §3.6). */
 const inflation = ref<number>(config.comparison.inflationRate)
@@ -81,9 +91,10 @@ const updatedAt = computed(() => {
             <option v-for="p in profiles.persons" :key="p.id" :value="p.id">{{ p.name || t('profile.unnamed') }}</option>
           </select>
           <a v-if="!onProfilePage" class="btn-mini topbar__link" href="#/profil">{{ t('profile.link') }}</a>
-          <a v-else class="btn-mini topbar__link" href="#/">{{ t('profile.back') }}</a>
+          <a v-if="!onMethodologyPage" class="btn-mini topbar__link" href="#/methodologie">{{ t('methodology.link') }}</a>
+          <a v-if="!onSimulator" class="btn-mini topbar__link" href="#/">{{ t('profile.back') }}</a>
         </div>
-        <div v-if="!onProfilePage" class="segmented" role="group" :aria-label="t('app.viewLabel')" :title="t('app.viewHelp')">
+        <div v-if="onSimulator" class="segmented" role="group" :aria-label="t('app.viewLabel')" :title="t('app.viewHelp')">
           <button type="button" :aria-pressed="view === 'gross'" @click="view = 'gross'">{{ t('app.gross') }}</button>
           <button type="button" :aria-pressed="view === 'net'" @click="view = 'net'">{{ t('app.net') }}</button>
         </div>
@@ -104,6 +115,10 @@ const updatedAt = computed(() => {
 
   <main v-if="onProfilePage" class="container">
     <ProfilePage />
+  </main>
+
+  <main v-else-if="onMethodologyPage" class="container">
+    <MethodologyPage :section="methodologySection" />
   </main>
 
   <main v-else class="container">
