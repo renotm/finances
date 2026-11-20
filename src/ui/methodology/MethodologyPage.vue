@@ -24,6 +24,7 @@ const toc = [
       { id: 'livret-bancaire', label: 'Livret bancaire' },
       { id: 'assurance-vie', label: 'Assurance vie' },
       { id: 'per', label: 'PER' },
+      { id: 'transmission', label: 'Garanties et transmission' },
     ],
   },
   { id: 'fiscalite', label: 'Fiscalité' },

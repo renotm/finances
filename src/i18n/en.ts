@@ -39,6 +39,22 @@ const en: typeof fr = {
     effort: 'The investments compared do not require the same savings effort ({list}): compare returns and gains in today\'s euros instead.',
     horizon: 'The investments compared do not have the same duration, in years ({list}): their final values are not comparable. The gain in today\'s euros narrows the gap without removing it: it ignores what the money would earn after the shorter investment ends, liquidity and risk. To compare, simulate the investments over the same duration.',
   },
+  qualitative: {
+    title: 'Features, advantages and limits',
+    legend: 'Legal rules and general features, unless marked "usual practice" or "depends on the contract". To be checked against your contract.',
+    nature: { practice: 'usual practice', contract: 'depends on the contract' },
+    categories: {
+      availability: 'Access to the capital',
+      risks: 'Risks and guarantees',
+      fees: 'Fees and constraints',
+      tax: 'Taxation during lifetime',
+      transmission: 'Transfer on death',
+      afterDeath: 'Access to funds after death',
+      annuity: 'PER life annuity',
+    },
+    notApplicable: 'Not applicable to this investment.',
+    more: 'Detailed rules and sources (in French)',
+  },
   methodology: {
     link: 'Methodology',
     title: 'Methodology and sources',

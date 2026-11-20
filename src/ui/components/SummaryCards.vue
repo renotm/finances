@@ -1,14 +1,23 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { presentValue, realReturn } from '../../engine/core/irr'
 import type { SlotResult } from '../../engine/run'
+import { qualitativeProfile, resolveQualitative } from '../../qualitative'
+import type { Locale } from '../../qualitative/types'
 import { slotColor } from '../colors'
 import { useFormat } from '../format'
 import type { Slot } from '../slots'
 
 const props = defineProps<{ items: { slot: Slot; run: SlotResult }[]; view: 'gross' | 'net'; inflation: number }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const f = useFormat()
+
+/** Blocs qualitatifs (SPEC §5.7) : repliés par défaut, ouverts ou fermés ensemble dans toutes les colonnes. */
+const qualOpen = ref(false)
+/** Caractéristiques d'une colonne, d'après ses propres paramètres (jamais le profil actif). */
+const qualitative = (slot: Slot) => resolveQualitative(slot.productId, slot.params, locale.value as Locale)
+const methodLink = (slot: Slot) => `#/methodologie/${qualitativeProfile(slot.productId)?.methodAnchor ?? ''}`
 
 /** Indicateurs de comparaison (SPEC §3.6), selon la vue brute ou nette. */
 function metrics(run: SlotResult) {
@@ -46,7 +55,8 @@ function duration(run: SlotResult): string {
 
 <template>
   <div class="cards">
-    <article v-for="({ slot, run }, idx) in items" :key="slot.id" class="card" :style="{ '--slot-color': slotColor(idx) }">
+    <div v-for="({ slot, run }, idx) in items" :key="slot.id" class="card-col" :style="{ '--slot-color': slotColor(idx) }">
+    <article class="card">
       <header class="card__header">
         <span class="badge">{{ idx + 1 }}</span>
         <h3>{{ t(`products.${slot.productId}`) }}</h3>
@@ -132,5 +142,40 @@ function duration(run: SlotResult): string {
         </li>
       </ul>
     </article>
+
+    <!-- Comparaison qualitative (SPEC §5.7) : enfants directs de la colonne, pour l'alignement par rangées (subgrid). -->
+    <button
+      v-if="qualitativeProfile(slot.productId)"
+      type="button"
+      class="qual__toggle"
+      :aria-expanded="qualOpen"
+      :aria-controls="`qual-${slot.id}`"
+      @click="qualOpen = !qualOpen"
+    >
+      <span class="qual__chevron" aria-hidden="true"></span>
+      {{ t('qualitative.title') }}
+    </button>
+    <template v-if="qualOpen && qualitativeProfile(slot.productId)">
+      <section
+        v-for="(cat, ci) in qualitative(slot)"
+        :id="ci === 0 ? `qual-${slot.id}` : undefined"
+        :key="cat.id"
+        class="qual__cat"
+        :aria-label="t(`qualitative.categories.${cat.id}`)"
+      >
+        <h4 class="qual__title">{{ t(`qualitative.categories.${cat.id}`) }}</h4>
+        <p v-if="cat.notApplicable" class="qual__na">{{ t('qualitative.notApplicable') }}</p>
+        <ul v-else class="qual__list">
+          <li v-for="item in cat.items" :key="item.text">
+            {{ item.text }}<span v-if="item.nature !== 'legal'" class="qual__nature"> ({{ t(`qualitative.nature.${item.nature}`) }})</span>
+          </li>
+        </ul>
+      </section>
+      <p class="qual__foot">
+        <span class="qual__legend">{{ t('qualitative.legend') }}</span>
+        <a :href="methodLink(slot)">{{ t('qualitative.more') }}</a>
+      </p>
+    </template>
+    </div>
   </div>
 </template>

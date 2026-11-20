@@ -37,6 +37,22 @@ export default {
     effort: 'Les placements comparés ne demandent pas le même effort d\'épargne ({list}) : comparez plutôt les rendements et les gains en euros d\'aujourd\'hui.',
     horizon: 'Les placements comparés n\'ont pas la même durée, en années ({list}) : leurs valeurs finales ne sont pas comparables. Le gain en euros d\'aujourd\'hui réduit l\'écart sans le supprimer : il ignore ce que deviendrait l\'argent après la fin du placement le plus court, la disponibilité des fonds et le risque. Pour comparer, simulez les placements sur une même durée.',
   },
+  qualitative: {
+    title: 'Caractéristiques, avantages et limites',
+    legend: 'Règles légales et caractéristiques générales, sauf mention « pratique habituelle » ou « selon le contrat ». À vérifier dans votre contrat.',
+    nature: { practice: 'pratique habituelle', contract: 'selon le contrat' },
+    categories: {
+      availability: 'Disponibilité du capital',
+      risks: 'Risques et garanties',
+      fees: 'Frais et contraintes',
+      tax: 'Fiscalité du vivant',
+      transmission: 'Transmission en cas de décès',
+      afterDeath: 'Disponibilité des fonds après le décès',
+      annuity: 'Rente viagère du PER',
+    },
+    notApplicable: 'Sans objet pour ce placement.',
+    more: 'Règles détaillées et sources',
+  },
   methodology: {
     link: 'Méthodologie',
     title: 'Méthodologie et sources',

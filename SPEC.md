@@ -486,6 +486,61 @@ Une page de référence qui permet de comprendre, vérifier et interpréter les 
 
 **Hors périmètre** : aucune modification du comportement des simulations, aucune nouvelle dépendance.
 
+### 5.7 Comparaison qualitative des placements (validée, livrée sur la branche `comparaison-qualitative`)
+
+Compléter la comparaison chiffrée par les caractéristiques qui ne se voient pas dans le rendement : disponibilité, risques, frais, fiscalité, transmission au décès. Informations courtes et factuelles ; aucun calcul financier modifié, aucun paramètre de simulation ajouté, pas de simulateur de succession.
+
+**Interface**
+- Sous chaque carte de synthèse, un bloc **« Caractéristiques, avantages et limites »**, **replié** par défaut.
+- Ouverture et fermeture **synchronisées** : ouvrir ou fermer le bloc d'une colonne ouvre ou ferme ceux de toutes les colonnes, pour garder les catégories côte à côte.
+- Branche : `comparaison-qualitative`, créée depuis `main`.
+- **Catégories alignées** : les mêmes 7 catégories, dans le même ordre, pour chaque placement ; sur grand écran, chaque catégorie occupe une même rangée pour toutes les colonnes (CSS `subgrid`), pour lire horizontalement. Une catégorie sans objet pour un placement (rente viagère hors PER) affiche « sans objet ».
+- Chaque élément est une phrase courte, marquée selon sa nature : **règle légale**, **pratique habituelle** ou **selon le contrat**. Un délai indicatif n'est jamais présenté comme garanti.
+- Un lien « En savoir plus » mène à la section correspondante de la page « Méthodologie et sources ».
+- Thème Bloom existant : composant `details` déjà utilisé dans l'application, sans nouveau style de carte.
+
+**Catégories et contenu prévu** (à vérifier sur les sources avant rédaction)
+1. **Disponibilité du capital** : retrait à tout moment (livrets, assurance vie), délais habituels de mise à disposition (pratique), blocage du PER jusqu'à la retraite, cas de déblocage anticipé.
+2. **Risques et garanties** : capital garanti ou non (fonds euros, unités de compte), garantie des dépôts (fonds de garantie des dépôts et de résolution pour les livrets ; fonds de garantie des assurances de personnes pour l'assurance vie et le PER assurance), incertitude des rendements, risque d'inflation.
+3. **Frais et contraintes** : frais renseignés dans la simulation, frais de sortie ou de transfert éventuels, plafonds de versement, contraintes contractuelles.
+4. **Fiscalité du vivant** : résumé d'une ou deux lignes et renvoi vers la méthodologie (pas de duplication) ; conditions de durée (8 ans pour l'assurance vie).
+5. **Transmission en cas de décès** : livrets et PER bancaire dans la succession ; assurance vie et PER assurance hors succession, avec désignation de bénéficiaires ; fiscalité selon l'âge au versement (avant ou après 70 ans) et abattements correspondants ; exonération du conjoint marié ou partenaire de PACS.
+6. **Disponibilité des fonds après le décès** : blocage des comptes individuels à la connaissance du décès ; comptes joints ; dépenses pouvant être réglées sur les comptes du défunt (obsèques…) ; durée du règlement de la succession, variable (le délai de six mois concerne la déclaration de succession, pas le déblocage) ; capital d'assurance vie versé aux bénéficiaires en principe hors succession, dans le délai légal fixé après réception des pièces ; PER bancaire et PER assurance.
+7. **Rente viagère du PER** (PER seulement) : décès avant liquidation (capital transmis) et après (rente simple : arrêt des versements) ; réversion au conjoint ; annuités garanties et décès pendant la période garantie ; une rente avec garanties est plus faible qu'une rente simple. Rappel : le simulateur calcule une rente simple.
+
+**Adaptation aux paramètres de la colonne** (lecture seule, aucun nouveau paramètre)
+- Assurance vie et PER : mention du risque de perte si une part est en unités de compte, garantie du capital (hors frais) sur la part en fonds euros.
+- PER : avec ou sans déduction ; sortie en capital, rente ou mixte (la catégorie 7 est mise en avant si une rente est prévue).
+- Livret bancaire : PFU ou option pour le barème.
+- Frais : montants saisis cités (« frais sur versements de 2 % ») ; si nuls, « aucun frais sur versements saisi ».
+- Situation familiale : assurance vie « couple » ou profil marié / pacsé → mention de l'exonération du conjoint ou du partenaire.
+- Caractéristique contractuelle inconnue (type de PER bancaire ou assurance, garanties de la rente, clause bénéficiaire) : les possibilités sont présentées, sans supposer qu'une garantie est acquise.
+
+**Sources**
+- Sources de la page méthodologique réutilisées ; sources officielles ajoutées pour la succession et la garantie des dépôts (Service-Public, Légifrance : Code des assurances, CGI art. 990 I et 757 B ; Banque de France / ACPR ; sites des fonds de garantie, à défaut marqués comme tels), chaque lien ouvert avant d'être cité.
+- La page « Méthodologie et sources » reçoit une section **« Transmission et décès »** (règles et sources) et les nouvelles références dans son tableau ; les blocs des cartes restent courts et renvoient vers elle.
+
+**Traductions** : FR et EN.
+
+**Architecture**
+- Un module par placement dans `src/qualitative/` (à côté du moteur, sans dépendance à Vue) : catégories, éléments avec leur nature, identifiants de sources, conditions d'affichage selon les paramètres, textes FR et EN. Ajouter un placement = ajouter un module.
+- Le composant d'affichage ne contient aucun texte métier.
+
+**Précisions de la validation**
+- Fiscalité au décès distinguée : assurance vie selon l'**âge de l'assuré au versement** (avant 70 ans : 152 500 € par bénéficiaire ; après : 30 500 € de primes, gains exonérés) ; PER assurance selon l'**âge du titulaire au décès** (après 70 ans : montant total taxé, gains compris) ; PER bancaire dans la succession.
+- Garanties distinguées : garantie du capital (support), garantie de l'État pour le Livret A, le LDDS et le LEP (100 000 €, qui s'ajoute), FGDR pour les dépôts bancaires (100 000 € par client et par établissement), FGAP pour les contrats d'assurance éligibles (70 000 €) ; pour un PER, la protection dépend de sa forme.
+- Le conjoint n'est jamais supposé bénéficiaire : son exonération n'est mentionnée que s'il est désigné, et seulement pour une colonne en couple.
+- Nature discrète : seules les mentions « pratique habituelle » et « selon le contrat » apparaissent, en texte discret à la fin de la phrase ; une ligne de légende en pied de bloc.
+- Mobile : une seule colonne, chaque bloc suit sa carte, sans alignement.
+- Informations contextuelles lues dans les paramètres de la colonne (`slot.params`, dont son contexte fiscal), jamais dans le profil actif.
+
+**Réalisation**
+- `src/qualitative/` : types, registre (`resolveQualitative`), éléments communs, un module par placement.
+- `SummaryCards.vue` : chaque colonne (`.card-col`) regroupe la carte, le bouton et les catégories ; état d'ouverture partagé.
+- Méthodologie : section 2.5 « Garanties, transmission et disponibilité après le décès », 12 sources ajoutées (Légifrance, BOFiP, impots.gouv.fr, Service-Public, Direction générale du Trésor, FGDR), toutes ouvertes le 20/11/2026. La page du ministère de l'Économie sur la garantie des dépôts n'a pas pu être ouverte (refus d'accès) : la page de la Direction générale du Trésor est citée à la place.
+
+**Tests** : chaque placement définit les 7 catégories ; chaque élément a un texte FR et EN et une nature ; chaque source citée existe ; les variantes selon les paramètres (unités de compte, sortie en rente, PFU / barème, couple) ; rendu des blocs repliés ; tests existants et build inchangés.
+
 ## 6. Architecture
 
 ```
@@ -512,6 +567,7 @@ tests/           tests Vitest du moteur
 - `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
 - `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
 - `tests/final-fix.test.ts` : corrections finales (déblocage PER l'année du versement, rachat d'assurance vie en perte, abattement sur les pensions par pensionné, résolution de la détection des TRI multiples, paramètres fiscaux vérifiés sur les sources officielles).
+- `tests/qualitative.test.ts` : comparaison qualitative (catégories, textes FR et EN, sources, règles distinguées, adaptation aux paramètres de la colonne, blocs repliés).
 - `tests/methodology.test.ts` : exemples chiffrés de la page « Méthodologie et sources », rendu de la page, sources.
 - `tests/ui.test.ts` : les montants des cartes, du tableau et des séries du graphique sont exactement ceux du moteur (rendu serveur des composants).
 - Sous Windows, lancer Vitest depuis `D:\Perso\finances` (lettre de lecteur en majuscule).

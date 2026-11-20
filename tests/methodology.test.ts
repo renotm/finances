@@ -115,7 +115,7 @@ describe('Méthodologie : rendu de la page', () => {
 
   it('affiche les huit sections, chacune atteignable depuis le sommaire', async () => {
     const html = await render('fr')
-    for (const id of ['principes', 'placements', 'livrets', 'livret-bancaire', 'assurance-vie', 'per', 'fiscalite', 'comparaison', 'limites', 'sources', 'fiabilite', 'avertissement']) {
+    for (const id of ['principes', 'placements', 'livrets', 'livret-bancaire', 'assurance-vie', 'per', 'transmission', 'fiscalite', 'comparaison', 'limites', 'sources', 'fiabilite', 'avertissement']) {
       expect(html, id).toContain(`id="m-${id}"`)
       expect(html, id).toContain(`href="#/methodologie/${id}"`)
     }
@@ -151,7 +151,9 @@ describe('Méthodologie : rendu de la page', () => {
 })
 
 describe('Méthodologie : sources', () => {
-  const allowed = /^https:\/\/(www\.)?(impots\.gouv\.fr|bofip\.impots\.gouv\.fr|legifrance\.gouv\.fr|service-public\.(gouv\.)?fr|economie\.gouv\.fr|amf-france\.org|banque-france\.fr|insee\.fr)\//
+  // Domaines institutionnels de la SPEC §5.6, sous-domaines compris (ex. : tresor.economie.gouv.fr), et le site du
+  // fonds de garantie des dépôts, organisme créé par la loi (SPEC §5.7).
+  const allowed = /^https:\/\/([a-z-]+\.)*(impots\.gouv\.fr|legifrance\.gouv\.fr|service-public\.(gouv\.)?fr|economie\.gouv\.fr|amf-france\.org|banque-france\.fr|insee\.fr|garantiedesdepots\.fr)\//
 
   it('identifiants uniques, champs renseignés', () => {
     const ids = SOURCES.map((s) => s.id)

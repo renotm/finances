@@ -301,5 +301,75 @@ const risk = config.riskProfiles
         <li>Non modélisés : plafonds des travailleurs non salariés, révision du plafond (supposé constant), rentes réversibles ou à annuités garanties.</li>
       </ul>
     </article>
+
+    <!-- ---------- Transmission et décès (SPEC §5.7) ---------- -->
+    <article id="m-transmission" class="method__product">
+      <h3>2.5 Garanties, transmission et disponibilité après le décès</h3>
+      <p>
+        Ces règles ne sont pas simulées ; elles complètent la comparaison qualitative affichée sous chaque carte. On distingue les
+        obligations légales, les pratiques habituelles (délais indicatifs, jamais garantis) et les dispositions propres à chaque contrat.
+      </p>
+
+      <h4>Garanties</h4>
+      <ul>
+        <li><strong>Garantie du capital</strong> : livrets et fonds en euros ne peuvent pas perdre de valeur (hors frais, selon le contrat) ; les unités de compte, si.</li>
+        <li>
+          <strong>Livret A, LDDS et LEP</strong> : garantie de l'État de 100 000 € par client et par établissement, qui s'ajoute à la garantie des
+          dépôts <SourceRef id="tresor-garantie" /> <SourceRef id="fgdr" />.
+        </li>
+        <li><strong>Dépôts bancaires</strong> (comptes, livrets bancaires) : fonds de garantie des dépôts et de résolution (FGDR), 100 000 € par client et par établissement.</li>
+        <li>
+          <strong>Contrats d'assurance éligibles</strong> (assurance vie) : fonds de garantie des assurances de personnes (FGAP), 70 000 € par
+          assuré, souscripteur ou bénéficiaire <SourceRef id="ca-r423-7" />. Pour un PER, la protection dépend de sa forme (assurance ou compte-titres).
+        </li>
+      </ul>
+
+      <h4>Livrets et comptes bancaires</h4>
+      <ul>
+        <li>
+          Le solde entre dans la succession. Les comptes et livrets individuels, Livret A et LDDS compris, sont bloqués dès que la banque est
+          informée du décès ; un compte joint reste en principe utilisable, sauf opposition des héritiers. Les frais d'obsèques, de dernière
+          maladie et les impôts du défunt peuvent être réglés sur ses comptes dans la limite de 5 965 € <SourceRef id="sp-comptes-deces" />.
+        </li>
+        <li>
+          La déclaration de succession doit être déposée dans les 6 mois du décès <SourceRef id="sp-declaration-succession" /> : c'est un délai
+          fiscal, pas une durée de blocage. Le règlement de la succession prend un temps variable, souvent plusieurs mois.
+        </li>
+      </ul>
+
+      <h4>Assurance vie</h4>
+      <ul>
+        <li>Le capital versé aux bénéficiaires désignés ne fait pas partie de la succession <SourceRef id="ca-l132-12" />.</li>
+        <li>
+          La fiscalité dépend de l'<strong>âge de l'assuré au moment de chaque versement</strong> <SourceRef id="impots-av-beneficiaire" /> :
+          versements avant 70 ans, abattement de 152 500 € par bénéficiaire, puis 20 % jusqu'à 700 000 € et 31,25 % au-delà
+          <SourceRef id="cgi-990-i" /> ; versements à partir de 70 ans, droits de succession sur les primes au-delà d'un abattement global de
+          30 500 €, les gains étant exclus <SourceRef id="cgi-757-b" /> <SourceRef id="bofip-av-deces" />.
+        </li>
+        <li>
+          Le conjoint marié et le partenaire de PACS sont exonérés <strong>lorsqu'ils sont bénéficiaires</strong> : le simulateur ne le suppose pas,
+          tout dépend de la clause bénéficiaire.
+        </li>
+        <li>
+          L'assureur paie dans le mois qui suit la réception des pièces, sous peine d'intérêts de retard <SourceRef id="ca-l132-23-1" /> ; de son
+          vivant, l'assuré obtient la valeur de rachat dans un délai de deux mois au plus <SourceRef id="ca-l132-21" />.
+        </li>
+      </ul>
+
+      <h4>PER</h4>
+      <ul>
+        <li>
+          PER assurance : capital versé aux bénéficiaires désignés. La fiscalité dépend de l'<strong>âge du titulaire au décès</strong> : avant
+          70 ans, abattement de 152 500 € par bénéficiaire puis 20 % et 31,25 % ; à partir de 70 ans, droits de succession au-delà de 30 500 €,
+          sur le montant total, gains compris <SourceRef id="sp-per" /> <SourceRef id="cgi-757-b" />.
+        </li>
+        <li>PER bancaire (compte-titres) : les sommes entrent dans la succession.</li>
+        <li>
+          Après la liquidation en rente : une rente simple s'arrête au décès. Une rente réversible continue d'être versée au bénéficiaire
+          désigné ; des annuités garanties prolongent les versements jusqu'à la fin de la période garantie (selon le contrat). Ces options
+          réduisent le montant de la rente ; le simulateur calcule une rente simple.
+        </li>
+      </ul>
+    </article>
   </section>
 </template>
