@@ -75,6 +75,16 @@ Le profil transmet aux colonnes : situation, enfants (dates de naissance, rattac
 - Abattement annuel après 8 ans : 4 600 € (9 200 € pour un couple soumis à imposition commune), commun à tous les contrats, imputé d'abord sur les produits des primes antérieures au 27/09/2017 (CGI art. 125-0 A, cité par Kohen Avocats) — concordante.
 - Seuil de 150 000 € : primes nettes de rachats, par assuré, tous contrats, au 31 décembre de l'année précédant le rachat — concordante.
 - Prélèvements sociaux : 17,2 %, prélevés chaque année sur le fonds euros et régularisés au rachat — concordante.
+- Frais du fonds euros : taux servi net = rendement après frais de gestion sur encours (fiches BPCE Life, Spirica) : soustraction des frais au rendement — concordante. L'anomalie C18 de l'audit (application multiplicative) n'est pas retenue.
+- Assiette de l'impôt sur le revenu : produits = sommes remboursées − primes correspondantes (CGI art. 125-0 A), donc nets des prélèvements sociaux déjà prélevés — lecture littérale du texte, **à confirmer** au BOFiP (C23).
+- Ordre de l'abattement (primes anciennes, puis 7,5 %, puis 12,8 %) : source unique concordante (Yomoni, Kohen Avocats pour les primes anciennes) — **à confirmer**.
+- Prise en compte des primes anciennes dans le seuil de 150 000 € (fraction à 7,5 % = (150 000 − primes anciennes) ÷ primes récentes) : les sources divergent (Yomoni pour, Netbooster contre) — **à confirmer**.
+
+**Hypothèses de modélisation de l'assurance vie (phase 3)**
+- Les produits d'un rachat se répartissent entre primes anciennes et récentes au prorata des primes.
+- Les primes des autres contrats saisies sont supposées versées depuis le 27/09/2017.
+- Contrat existant : prélèvements sociaux déjà payés sur la part en fonds euros des plus-values latentes, au prorata de la répartition actuelle.
+- L'abattement annuel n'est pas réduit par d'éventuels rachats sur d'autres contrats.
 
 ## 5. Livrets (règles appliquées en phase 4)
 - Livret A, LDDS : intérêts par quinzaine, versement compté à partir de la quinzaine suivante, retrait dès le début de la quinzaine en cours, capitalisation au 31 décembre, exonération d'impôt et de prélèvements sociaux — concordante.

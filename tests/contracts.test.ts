@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { annuityTaxableFraction, carryLastYear, tgf05Price } from '../src/engine/products/per'
+import { rachatTax, reducedRateShare } from '../src/engine/products/assuranceVie'
 import { getProduct } from '../src/engine/registry'
 import { runSimulation } from '../src/engine/run'
 import { params, simulate } from './helpers'
@@ -10,14 +11,16 @@ const ucOnly = { euroShare: 0, ucRate: 5, ucFee: 0, entryFee: 0 }
 describe('Assurance vie', () => {
   it('fonds euros : intérêts nets de frais, prélèvements sociaux annuels', () => {
     const r = simulate('assuranceVie', { initialCapital: 10000, ...euroOnly })
+    // Taux servi = rendement brut − frais de gestion sur encours (fiches de rendement des assureurs) :
     // 10 000 × (3,2 % − 0,6 %) = 260 ; prélèvements sociaux 17,2 % = 44,72
     expect(r.summary.finalGross).toBeCloseTo(10215.28, 6)
     expect(r.summary.fees).toBeCloseTo(60, 6)
   })
 
-  it('rachat avant 8 ans : 12,8 % sur les gains, prélèvements déjà payés non redemandés', () => {
+  it('rachat avant 8 ans : 12,8 % sur les produits (montant racheté − primes), prélèvements déjà payés non redemandés', () => {
     const r = simulate('assuranceVie', { initialCapital: 10000, ...euroOnly })
-    expect(r.summary.finalNet).toBeCloseTo(10215.28 - 260 * 0.128, 6)
+    // produits = 10 215,28 − 10 000 = 215,28 € (CGI art. 125-0 A) ; prélèvements sociaux déjà réglés chaque année
+    expect(r.summary.finalNet).toBeCloseTo(10215.28 - 215.28 * 0.128, 6)
   })
 
   it('rachat après 8 ans : abattement de 4 600 €', () => {
@@ -45,8 +48,10 @@ describe('Assurance vie', () => {
       existingContract: true,
       openingDate: '2010-01',
     })
-    const taxable = 30000 - 4600
-    const incomeTax = taxable * (0.5 * 0.075 + 0.5 * 0.128)
+    // 30 000 € de produits : 15 000 à 7,5 % (seuil 150 000 / 300 000), 15 000 à 12,8 %.
+    // L'abattement s'impute d'abord sur la part à 7,5 % : (15 000 − 4 600) × 7,5 % + 15 000 × 12,8 % = 2 700 €
+    // (l'audit l'appliquait au prorata des deux parts : 2 578,10 €)
+    const incomeTax = (15000 - 4600) * 0.075 + 15000 * 0.128
     expect(r.summary.finalNet).toBeCloseTo(330000 - incomeTax - 30000 * 0.172, 4)
   })
 
@@ -88,6 +93,83 @@ describe('Assurance vie', () => {
   it('pas de fourchette à 100 % fonds euros', () => {
     const { band } = runSimulation('assuranceVie', params('assuranceVie', { initialCapital: 10000, ...euroOnly }))
     expect(band).toBeUndefined()
+  })
+})
+
+describe('Assurance vie : contrats existants et régimes de primes', () => {
+  const ucZero = { euroShare: 0, ucRate: 0, ucFee: 0, entryFee: 0 }
+
+  it('contrat existant : les plus-values latentes sont imposées au rachat', () => {
+    // valeur 50 000 €, versements 40 000 € → produits 10 000 € ; après 8 ans : (10 000 − 4 600) × 7,5 % = 405 € ;
+    // prélèvements sociaux 1 720 € (part en unités de compte : rien n'a été prélevé chaque année)
+    const r = simulate('assuranceVie', { ...ucZero, initialCapital: 50000, existingContract: true, openingDate: '2010-01', existingPremiums: 40000 })
+    expect(r.summary.finalNet).toBeCloseTo(50000 - 405 - 1720, 6)
+  })
+
+  it('versements non renseignés : avertissement (plus-values latentes ignorées)', () => {
+    const r = simulate('assuranceVie', { ...ucZero, initialCapital: 50000, existingContract: true, openingDate: '2010-01' })
+    expect(r.warnings.map((w) => w.code)).toContain('avLatentGainsUnknown')
+  })
+
+  it('primes avant 2017 : l\'abattement s\'impute d\'abord sur leurs produits', () => {
+    // valeur 100 000 €, versements 80 000 € dont 40 000 € avant 2017 → produits 20 000 € (10 000 anciens, 10 000 récents)
+    // (10 000 − 4 600) × 7,5 % + 10 000 × 7,5 % = 1 155 € ; prélèvements sociaux 3 440 €
+    const r = simulate('assuranceVie', {
+      ...ucZero, initialCapital: 100000, existingContract: true, openingDate: '2015-01', existingPremiums: 80000, premiumsBefore2017: 40000,
+    })
+    expect(r.summary.finalNet).toBeCloseTo(100000 - 1155 - 3440, 6)
+  })
+
+  it('primes avant 2017, contrat de moins de 8 ans : 35 % avant 4 ans, 15 % entre 4 et 8 ans', () => {
+    const base = { gains: 1000, socialCredit: 0, preShare: 1, allowanceLeft: 4600, reducedShare: 1, socialRate: 0.172 }
+    expect(rachatTax({ ...base, ageMonths: 30 }).incomeTax).toBeCloseTo(350, 6)
+    expect(rachatTax({ ...base, ageMonths: 60 }).incomeTax).toBeCloseTo(150, 6)
+    expect(rachatTax({ ...base, ageMonths: 100 }).incomeTax).toBe(0) // abattement
+  })
+
+  it('ordre de l\'abattement : primes anciennes, puis 7,5 %, puis 12,8 %', () => {
+    // produits 10 000 € : 2 000 anciens, 8 000 récents dont la moitié à 7,5 % ; abattement 4 600 €
+    // 2 000 absorbés, puis 2 600 sur la part à 7,5 % → (4 000 − 2 600) × 7,5 % + 4 000 × 12,8 % = 617 €
+    const t = rachatTax({ gains: 10000, socialCredit: 0, preShare: 0.2, ageMonths: 120, allowanceLeft: 4600, reducedShare: 0.5, socialRate: 0.172 })
+    expect(t.incomeTax).toBeCloseTo(617, 6)
+    expect(t.allowanceTaken).toBeCloseTo(4600, 6)
+  })
+
+  it('seuil de 150 000 € : tous contrats, primes anciennes déduites', () => {
+    expect(reducedRateShare(200000, 0)).toBeCloseTo(0.75, 9)
+    expect(reducedRateShare(100000, 40000)).toBe(1)
+    expect(reducedRateShare(300000, 100000)).toBeCloseTo(0.25, 9)
+  })
+
+  it('autres contrats : ils réduisent la part taxée à 7,5 %', () => {
+    // 300 000 € sur ce contrat, 0 ailleurs : 50 % à 7,5 % ; avec 100 000 € ailleurs : 150 / 400 = 37,5 %
+    // abattement imputé d'abord sur la part à 7,5 %
+    const common = { ...ucZero, ucRate: 10, initialCapital: 300000, existingContract: true, openingDate: '2018-01', existingPremiums: 300000 }
+    const alone = simulate('assuranceVie', common)
+    const withOthers = simulate('assuranceVie', { ...common, otherContractsPremiums: 100000 })
+    const ps = 30000 * 0.172
+    expect(alone.summary.finalNet).toBeCloseTo(330000 - ((15000 - 4600) * 0.075 + 15000 * 0.128) - ps, 4)
+    expect(withOthers.summary.finalNet).toBeCloseTo(330000 - ((11250 - 4600) * 0.075 + 18750 * 0.128) - ps, 4)
+  })
+
+  it('seuil apprécié au 31 décembre de l\'année précédente : un versement de l\'année n\'y compte pas', () => {
+    // 100 000 € de primes au 31/12/2025, 100 000 € versés en janvier 2026, rachat total fin 2026 :
+    // seuil apprécié sur 100 000 € → tous les produits récents à 7,5 % : (20 000 − 4 600) × 7,5 %
+    const r = simulate('assuranceVie', {
+      ...ucZero, initialCapital: 120000, existingContract: true, openingDate: '2010-01', existingPremiums: 100000,
+      movements: [{ id: 1, date: '2026-01', amount: 100000, kind: 'deposit' }],
+    })
+    expect(r.summary.finalNet).toBeCloseTo(220000 - 15400 * 0.075 - 20000 * 0.172, 4)
+  })
+
+  it('rachats multiples la même année : l\'abattement n\'est consommé qu\'une fois', () => {
+    // valeur 20 000 €, primes 10 000 € ; 2 rachats de 10 000 € en 2027, 5 000 € de produits chacun
+    // 1er : (5 000 − 4 600) × 7,5 % = 30 € ; 2e : 5 000 × 7,5 % = 375 € ; prélèvements sociaux 860 € chacun
+    const r = simulate('assuranceVie', {
+      ...ucZero, initialCapital: 20000, existingContract: true, openingDate: '2010-01', existingPremiums: 10000, durationYears: 2,
+      movements: [{ id: 1, date: '2027-01', amount: 10000, kind: 'withdrawal' }, { id: 2, date: '2027-06', amount: 10000, kind: 'withdrawal' }],
+    })
+    expect(r.years[1].taxes).toBeCloseTo(30 + 375 + 2 * 860, 6)
   })
 })
 

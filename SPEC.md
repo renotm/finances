@@ -108,6 +108,8 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 |---|---|
 | Capital initial, versements, mouvements ponctuels | 0 € |
 | Contrat déjà ouvert + date d'ouverture | non ; si oui, la date d'ouverture sert à la règle des 8 ans, et le capital initial (valeur actuelle) ne supporte pas de frais sur versement |
+| Contrat existant : total des versements nets restant, dont versements avant le 27/09/2017 | 0 = inconnu (plus-values latentes ignorées, avertissement) |
+| Versements nets sur les autres contrats d'assurance vie de l'assuré | 0 € (seuil de 150 000 €) |
 | Frais sur versements | 0 % (contrats en ligne) |
 | Répartition fonds euros / UC | 100 % / 0 % |
 | Taux fonds euros (brut de frais) | 3,2 % (soit 2,6 % net de frais, la moyenne du marché en 2025) |
@@ -124,14 +126,18 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 - UC : valorisation mensuelle au rendement moyen (moins frais de gestion), prélèvements sociaux **à la sortie** seulement.
 - Pas d'arbitrage ni de rééquilibrage en v1 : la répartition s'applique à chaque versement.
 
-**Fiscalité des rachats** (partiels en cours de route, total en fin de simulation pour le net)
-- Part de gains dans un rachat = montant du rachat × (gains totaux / valeur du contrat).
-- **Avant 8 ans** : 12,8 % (flat tax) sur les gains + prélèvements sociaux (sur la part UC, ceux du fonds euros ayant déjà été payés).
+- **Frais du fonds euros** : taux servi = rendement brut − frais de gestion sur encours (définition des fiches de rendement des assureurs) ; les unités de compte supportent les frais mois par mois sur l'encours. Aucune double déduction : les frais ne sont prélevés qu'une fois, sur l'encours.
+
+**Fiscalité des rachats** (partiels en cours de route, total en fin de simulation pour le net), CGI art. 125-0 A
+- **Produits** d'un rachat = montant racheté − primes × (montant racheté ÷ valeur du contrat). Cette assiette de l'impôt sur le revenu est nette des prélèvements sociaux déjà prélevés sur le fonds euros.
+- Les produits se répartissent entre primes versées **avant** et **depuis** le 27/09/2017 au prorata des primes.
+- **Avant 8 ans** : primes récentes 12,8 % ; primes anciennes 35 % (moins de 4 ans) ou 15 % (4 à 8 ans).
 - **Après 8 ans** :
-  - abattement annuel sur les gains : 4 600 € (célibataire) / 9 200 € (couple) ;
-  - au-delà : 7,5 % si le total des versements (nets des rachats) ≤ 150 000 €, 12,8 % sur la fraction au-delà ;
-  - prélèvements sociaux comme ci-dessus (non concernés par l'abattement).
-- Hors v1 : versements après 70 ans, succession, option pour le barème.
+  - abattement annuel de 4 600 € (célibataire) / 9 200 € (couple), consommé une seule fois par an même en cas de rachats multiples, imputé **d'abord** sur les produits des primes anciennes, **puis** sur ceux taxés à 7,5 %, **puis** sur ceux taxés à 12,8 % ;
+  - primes anciennes : 7,5 % ; primes récentes : 7,5 % sur la fraction (150 000 € − primes anciennes) ÷ primes récentes, 12,8 % au-delà, les primes étant celles de **tous les contrats de l'assuré au 31 décembre de l'année précédente** ;
+  - prélèvements sociaux (non concernés par l'abattement) : sur les produits avant prélèvements annuels, moins ceux déjà payés.
+- **Contrat existant** : les primes saisies déterminent les plus-values latentes ; les prélèvements sociaux de leur part en fonds euros sont supposés déjà payés, au prorata de la répartition actuelle.
+- Hors périmètre : versements après 70 ans, succession, option pour le barème, abattement consommé par des rachats sur d'autres contrats.
 
 ### 4.4 PER
 

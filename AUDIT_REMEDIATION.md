@@ -11,8 +11,8 @@
 | 0 | Analyse du code et plan d'implémentation | terminée |
 | 1 | Moteur fiscal commun | terminée |
 | 2 | Corrections du PER | terminée |
-| 3 | Corrections de l'assurance vie | en cours |
-| 4 | Corrections des livrets | à faire |
+| 3 | Corrections de l'assurance vie | terminée |
+| 4 | Corrections des livrets | en cours |
 | 5 | Cohérence des comparaisons | à faire |
 | 6 | Validation automatisée | à faire |
 
@@ -71,6 +71,27 @@
 **Limites restantes** : âge du conjoint inconnu pour la mutualisation ; interaction capital / rente la même année non cumulée ; table TGF05 disponible seulement à taux technique 0 % et pour les âges 55 à 80 ans.
 
 91 tests passent, build OK.
+
+## Phase 3 : assurance vie (terminée)
+
+| Anomalie (AUDIT.md / plan) | Correction | Test(s) |
+|---|---|---|
+| C18 frais du fonds euros (audit : appliquer les frais en multiplicatif) | **Non retenue après vérification** : le taux servi est le rendement après frais sur encours (soustraction) ; documenté | `fonds euros : intérêts nets de frais` |
+| Plan : brut / net de frais, pas de double déduction | rendement brut et frais distincts dans les lignes annuelles ; frais prélevés une seule fois sur l'encours | idem, `unités de compte` |
+| C23 assiette de l'IR | produits = montant racheté − quote-part des primes (CGI 125-0 A), nets des prélèvements annuels ; à confirmer au BOFiP | `rachat avant 8 ans : 12,8 % sur les produits` |
+| C25 contrat existant | champs « versements nets restant » et « dont avant 2017 » ; plus-values latentes imposées ; avertissement si inconnu | `contrat existant`, `versements non renseignés` |
+| Plan : primes avant le 27/09/2017 | 35 % / 15 % / 7,5 % selon la durée | `primes avant 2017…`, `contrat de moins de 8 ans` |
+| Plan : ordre des abattements | primes anciennes, puis 7,5 %, puis 12,8 % | `ordre de l'abattement` |
+| C26 seuil de 150 000 € | tous contrats de l'assuré (champ « autres contrats »), au 31/12 de l'année précédente, primes anciennes déduites | `seuil de 150 000 €`, `autres contrats`, `seuil apprécié au 31 décembre` |
+| Plan : rachats multiples | abattement consommé une seule fois par an | `rachats multiples la même année` |
+
+**Tests existants corrigés** :
+- `rachat avant 8 ans` attendait un impôt sur les produits avant prélèvements sociaux annuels (260 €). Il attend désormais l'assiette légale nette (215,28 €).
+- `après 8 ans, au-delà de 150 000 €` appliquait l'abattement au prorata des deux taux (2 578,10 €). Il l'applique désormais dans l'ordre réglementaire, d'abord sur la part à 7,5 % (2 700 €).
+
+**Limites restantes** : trois règles « à confirmer » au BOFiP (assiette nette, ordre de l'abattement, primes anciennes dans le seuil), voir FISCAL_RULES.md §4.
+
+100 tests passent, build OK.
 
 ## Journal
 
