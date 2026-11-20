@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getProduct, products } from '../../engine/registry'
-import type { ParamValue } from '../../engine/types'
+import type { ParamPatch, ParamValue } from '../../engine/types'
 import { slotColor } from '../colors'
 import type { Slot } from '../slots'
 import MovementsEditor from './MovementsEditor.vue'
@@ -20,8 +20,15 @@ const idPrefix = computed(() => `slot${props.entry.id}`)
 const perYears = computed(() => Number(props.entry.params.retirementAge) - Number(props.entry.params.currentAge))
 
 function update(key: string, value: ParamValue) {
-  props.entry.params[key] = value
-  product.value.params.find((d) => d.key === key)?.onChange?.(props.entry.params)
+  applyPatch({ [key]: value })
+}
+
+/** Applique une modification d'un ou plusieurs paramètres (champ saisi ou bouton d'action). */
+function applyPatch(patch: ParamPatch) {
+  for (const [key, value] of Object.entries(patch)) {
+    props.entry.params[key] = value
+    product.value.params.find((d) => d.key === key)?.onChange?.(props.entry.params)
+  }
 }
 </script>
 
@@ -44,7 +51,7 @@ function update(key: string, value: ParamValue) {
     </header>
 
     <div class="panel__fields">
-      <ParamField v-for="d in mainParams" :key="d.key" :def="d" :params="entry.params" :id-prefix="idPrefix" @update="update" />
+      <ParamField v-for="d in mainParams" :key="d.key" :def="d" :params="entry.params" :id-prefix="idPrefix" @update="update" @patch="applyPatch" />
       <p v-if="entry.productId === 'per' && perYears > 0" class="hint">{{ t('hints.durationPer', { years: perYears }) }}</p>
     </div>
 
@@ -61,7 +68,7 @@ function update(key: string, value: ParamValue) {
     <details v-if="advancedParams.length" class="panel__section">
       <summary>{{ t('panel.advanced') }}</summary>
       <div class="panel__fields">
-        <ParamField v-for="d in advancedParams" :key="d.key" :def="d" :params="entry.params" :id-prefix="idPrefix" @update="update" />
+        <ParamField v-for="d in advancedParams" :key="d.key" :def="d" :params="entry.params" :id-prefix="idPrefix" @update="update" @patch="applyPatch" />
       </div>
     </details>
 

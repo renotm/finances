@@ -1,25 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ParamDef, ParamValue, SimParams } from '../../engine/types'
+import type { ParamAction, ParamDef, ParamPatch, ParamValue, SimParams } from '../../engine/types'
 import { useFormat } from '../format'
 import YearMonthInput from './YearMonthInput.vue'
 
 const props = defineProps<{ def: ParamDef; params: SimParams; idPrefix: string }>()
-const emit = defineEmits<{ update: [key: string, value: ParamValue] }>()
+const emit = defineEmits<{ update: [key: string, value: ParamValue]; patch: [patch: ParamPatch] }>()
 const { t, te } = useI18n()
 const f = useFormat()
 
-const action = computed(() => (props.def.action && props.def.action.visible(props.params) ? props.def.action : null))
-const actionHint = computed(() => {
-  if (!action.value) return ''
-  const { key, amounts } = action.value.hint(props.params)
-  const formatted = Object.fromEntries(Object.entries(amounts).map(([k, v]) => [k, f.eur(v)]))
-  return t(`actions.${action.value.id}.${key}`, formatted)
-})
+const label = computed(() => t(`params.${props.def.key}`, props.def.labelParams?.(props.params) ?? {}))
 
-function runAction() {
-  if (action.value) emit('update', props.def.key, action.value.value(props.params))
+const actions = computed(() => (props.def.actions ?? []).filter((a) => a.visible(props.params)))
+
+function hintOf(a: ParamAction): string {
+  if (!a.hint) return ''
+  const { key, amounts, values } = a.hint(props.params)
+  const formatted = Object.fromEntries(Object.entries(amounts).map(([k, v]) => [k, f.eur(v)]))
+  return t(`actions.${a.id}.${key}`, { ...values, ...formatted })
+}
+
+function runAction(a: ParamAction) {
+  emit('patch', a.apply(props.params))
 }
 
 const id = computed(() => `${props.idPrefix}-${props.def.key}`)
@@ -68,22 +71,24 @@ function onSelect(e: Event) {
   <div class="field" :class="{ 'field--check': def.type === 'boolean' }">
     <template v-if="def.type === 'boolean'">
       <input :id="id" type="checkbox" :checked="value === true" @change="emit('update', def.key, ($event.target as HTMLInputElement).checked)" />
-      <label :for="id">{{ t(`params.${def.key}`) }}</label>
+      <label :for="id">{{ label }}</label>
     </template>
 
     <template v-else>
-      <div v-if="action" class="field__label-row">
-        <label :for="id">{{ t(`params.${def.key}`) }}</label>
-        <button type="button" class="btn-mini" :title="actionHint" @click="runAction">
-          {{ t(`actions.${action.id}.button`) }}
-        </button>
+      <div v-if="actions.length" class="field__label-row">
+        <label :for="id">{{ label }}</label>
+        <span class="field__actions">
+          <button v-for="a in actions" :key="a.id" type="button" class="btn-mini" :title="hintOf(a)" @click="runAction(a)">
+            {{ t(`actions.${a.id}.button`) }}
+          </button>
+        </span>
       </div>
-      <label v-else :for="id">{{ t(`params.${def.key}`) }}</label>
+      <label v-else :for="id">{{ label }}</label>
 
       <YearMonthInput
         v-if="def.type === 'yearMonth'"
         :id="id"
-        :label="t(`params.${def.key}`)"
+        :label="label"
         :model-value="String(value)"
         @update:model-value="emit('update', def.key, $event)"
       />
@@ -107,7 +112,9 @@ function onSelect(e: Event) {
       </div>
     </template>
 
-    <p v-if="actionHint" class="hint">{{ actionHint }}</p>
+    <template v-for="a in actions" :key="a.id">
+      <p v-if="a.hint" class="hint">{{ hintOf(a) }}</p>
+    </template>
     <p v-if="te(hintKey)" class="hint">{{ t(hintKey) }}</p>
   </div>
 </template>

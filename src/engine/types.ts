@@ -18,13 +18,16 @@ export type SimParams = { [key: string]: ParamValue | Movement[] } & { movements
 
 export type ParamUnit = 'eur' | 'pct' | 'years' | 'months' | 'age' | 'yearsPerDecade'
 
-/** Bouton qui remplit un champ avec une valeur calculée (ex. : versement maximum déductible). */
+/** Modification de paramètres produite par une action (plusieurs clés possibles, mouvements compris). */
+export type ParamPatch = { [key: string]: ParamValue | Movement[] }
+
+/** Petit bouton placé sur la ligne d'un libellé, qui remplit un ou plusieurs paramètres (ex. : « Max »). */
 export interface ParamAction {
   id: string
   visible: (p: SimParams) => boolean
-  value: (p: SimParams) => number
-  /** Clé de la ligne d'aide (sous `actions.<id>`) et montants en euros à y afficher. */
-  hint: (p: SimParams) => { key: string; amounts: Record<string, number> }
+  apply: (p: SimParams) => ParamPatch
+  /** Ligne d'aide (clé sous `actions.<id>`) : montants en euros à formater, et autres valeurs telles quelles. */
+  hint?: (p: SimParams) => { key: string; amounts: Record<string, number>; values?: Record<string, string | number> }
 }
 
 export interface ParamDef {
@@ -40,7 +43,9 @@ export interface ParamDef {
   visible?: (p: SimParams) => boolean
   /** Ajuste d'autres paramètres quand celui-ci change (ex. : profil de risque → rendement par défaut). */
   onChange?: (p: SimParams) => void
-  action?: ParamAction
+  actions?: ParamAction[]
+  /** Valeurs insérées dans le libellé traduit (ex. : l'année d'un plafond). */
+  labelParams?: (p: SimParams) => Record<string, string | number>
 }
 
 /** 'mid' : taux moyen. 'low' / 'high' : bornes de la fourchette des supports risqués. */
@@ -113,12 +118,19 @@ export interface Summary {
   annualReturnNet: number | null
 }
 
+/** Ligne de synthèse propre à un placement (clé de traduction sous `summary.extra`). */
+export interface ExtraLine {
+  key: string
+  amount: number
+}
+
 export interface SimResult {
   points: Point[]
   years: YearRow[]
   summary: Summary
   warnings: Warning[]
   annuity?: Annuity
+  extraLines?: ExtraLine[]
 }
 
 export interface Product {

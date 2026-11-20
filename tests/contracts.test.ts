@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { carryLastYear } from '../src/engine/products/per'
 import { getProduct } from '../src/engine/registry'
 import { runSimulation } from '../src/engine/run'
 import { params, simulate } from './helpers'
@@ -221,22 +222,87 @@ describe('PER', () => {
     })
   })
 
+  const actionOf = (key: string, id: string) =>
+    getProduct('per').params.find((d) => d.key === key)!.actions!.find((x) => x.id === id)!
+
   describe('bouton Max', () => {
-    const action = getProduct('per').params.find((d) => d.key === 'periodicAmount')!.action!
+    const action = actionOf('periodicAmount', 'maxDeductible')
+    const value = (o: Record<string, unknown>) => action.apply(params('per', o)).periodicAmount
 
     it('plafond ÷ 12 en mensuel, plafond entier en annuel', () => {
-      expect(action.value(params('per', { income: 60000 }))).toBe(500)
-      expect(action.value(params('per', { income: 60000, frequency: 'yearly' }))).toBe(6000)
+      expect(value({ income: 60000 })).toBe(500)
+      expect(value({ income: 60000, frequency: 'yearly' })).toBe(6000)
     })
 
     it('plancher sans revenus, plafond de l\'avis d\'impôt s\'il est saisi', () => {
-      expect(action.value(params('per', {}))).toBe(392)
-      expect(action.value(params('per', { income: 60000, ceilingOverride: 9000 }))).toBe(750)
+      expect(value({})).toBe(392)
+      expect(value({ income: 60000, ceilingOverride: 9000 })).toBe(750)
+    })
+
+    it('ignore les plafonds reportés', () => {
+      expect(value({ ceilingOverride: 6000, carryN1: 6000 })).toBe(500)
     })
 
     it('visible seulement si les versements sont déduits', () => {
       expect(action.visible(params('per', { deducted: true }))).toBe(true)
       expect(action.visible(params('per', { deducted: false }))).toBe(false)
+    })
+  })
+
+  describe('report des plafonds non utilisés', () => {
+    // Début en janvier 2026, plafond annuel de 4 000 €, TMI 30 %, rendement net nul.
+    const base = { ...oneYear, currentAge: 40, retirementAge: 41, euroRate: 0.6, ceilingOverride: 4000 }
+
+    it('plafond de l\'année d\'abord, puis les reports du plus ancien au plus récent', () => {
+      const r = simulate('per', { ...base, initialCapital: 10000, carryN1: 3000, carryN2: 2000 })
+      // 4 000 (année) + 2 000 (2024) + 3 000 (2025) = 9 000 déductibles, 1 000 au-delà
+      expect(r.summary.taxSavings).toBeCloseTo(9000 * 0.3, 6)
+      expect(r.warnings.map((w) => w.code)).toContain('perCeilingExceeded')
+      expect(r.extraLines).toEqual([{ key: 'carryUsed', amount: 5000 }])
+    })
+
+    it('le plus ancien est consommé en premier', () => {
+      // 5 000 versés : 4 000 sur l'année, 1 000 sur 2023 (qui expire fin 2026) ; celui de 2025 reste intact
+      const r = simulate('per', { ...base, initialCapital: 5000, carryN1: 1000, carryN3: 1000 })
+      expect(r.summary.taxSavings).toBeCloseTo(5000 * 0.3, 6)
+      expect(r.warnings.map((w) => w.code)).not.toContain('perCarryExpired')
+    })
+
+    it('un plafond saisi qui expire sans servir est signalé', () => {
+      const r = simulate('per', { ...base, initialCapital: 4000, carryN3: 1000 })
+      expect(r.warnings).toContainEqual({ code: 'perCarryExpired', params: { amount: 1000 } })
+    })
+
+    it('le plafond non utilisé d\'une année sert les années suivantes', () => {
+      const r = simulate('per', {
+        ...base,
+        retirementAge: 43,
+        movements: [{ id: 1, date: '2027-06', amount: 8000, kind: 'deposit' }],
+      })
+      // 2026 : rien versé, 4 000 reportés ; 2027 : 4 000 (année) + 4 000 (report 2026)
+      expect(r.years.find((y) => y.year === 2027)?.taxSavings).toBeCloseTo(8000 * 0.3, 6)
+      expect(r.warnings.map((w) => w.code)).not.toContain('perCeilingExceeded')
+    })
+
+    it('les reports d\'avant 2026 valent 3 ans, ceux d\'après 5 ans', () => {
+      expect(carryLastYear(2023)).toBe(2026)
+      expect(carryLastYear(2025)).toBe(2028)
+      expect(carryLastYear(2026)).toBe(2031)
+    })
+
+    it('bouton « Utiliser le report » : versement ponctuel en décembre, sans doublon', () => {
+      const action = actionOf('periodicAmount', 'useCarryForward')
+      expect(action.visible(params('per', {}))).toBe(false)
+      const p = params('per', { carryN1: 3000, carryN2: 2000 })
+      expect(action.visible(p)).toBe(true)
+      const patch = action.apply(p)
+      expect(patch.movements).toEqual([expect.objectContaining({ date: '2026-12', amount: 5000, kind: 'deposit' })])
+      expect(action.apply({ ...p, movements: patch.movements as typeof p.movements })).toEqual({})
+    })
+
+    it('bouton « Estimer » : trois plafonds égaux au plafond annuel', () => {
+      const action = actionOf('carryN1', 'estimateCarry')
+      expect(action.apply(params('per', { income: 60000 }))).toEqual({ carryN1: 6000, carryN2: 6000, carryN3: 6000 })
     })
   })
 

@@ -76,6 +76,10 @@ export const config = {
     ceilingRate: 10,
     ceilingFloor: 4710,
     ceilingMax: 37680,
+    /** Report des plafonds non utilisés : 3 ans pour ceux d'avant 2026, 5 ans à partir de 2026 (LF 2026). */
+    carryRuleChangeYear: 2026,
+    carryYearsBefore: 3,
+    carryYearsAfter: 5,
     /** Abattement de 10 % des pensions, appliqué à la rente issue de versements déduits. */
     pensionAllowance: 10,
     /** Fraction imposable des rentes viagères à titre onéreux selon l'âge au premier versement. */

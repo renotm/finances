@@ -1,6 +1,6 @@
 # Simulateur de placements — Spécification v1
 
-> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) codée sur la branche `per-rente`.
+> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) livrée. Report des plafonds PER (§4.4.4) : validé, branche `per-report-plafonds`.
 > Dernière mise à jour : 20/11/2026
 
 ---
@@ -167,7 +167,8 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 - **Économie d'impôt à l'entrée** (si versements déduits) : versement × TMI actuelle, l'année du versement. Le capital initial compte comme un versement de la première année.
 - **Déblocage anticipé** : imposé comme une sortie en capital, mais avec la TMI actuelle.
 - **Plafond de déduction** (salariés) : 10 % des revenus professionnels nets, avec un plancher de 4 710 € et un plafond de 37 680 € (valeurs 2026, calculées sur le PASS 2025 de 47 100 €). Sans revenus renseignés, on applique le plancher. Un **avertissement** s'affiche si les versements de l'année dépassent le plafond ; la part au-delà ne génère pas d'économie d'impôt. Le plafond figurant sur l'avis d'imposition est le chiffre qui fait foi : un champ permet de le saisir directement.
-- Hors v1 : plafonds des indépendants (TNS), report des plafonds non utilisés des années précédentes, mutualisation dans le couple.
+- Report des plafonds non utilisés des années précédentes : voir 4.4.4.
+- Hors périmètre : plafonds des indépendants (TNS), mutualisation dans le couple.
 - **Sortie en capital** :
   - versements déduits : impôt sur le revenu au barème (TMI à la retraite), pas de prélèvements sociaux ;
   - gains : flat tax (12,8 % + prélèvements sociaux) ;
@@ -219,6 +220,46 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 - Plafond utilisé : celui de l'avis d'impôt s'il est saisi, sinon 10 % des revenus professionnels bornés (4 710 € à 37 680 €), sinon le plancher de 4 710 €.
 - Un clic remplit le champ « Versement régulier » : plafond ÷ 12 arrondi à l'euro inférieur en mensuel, plafond entier en annuel. Le champ reste modifiable et ne se recalcule pas tout seul si les revenus changent.
 - Le capital initial n'est pas déduit du plafond de la 1re année : s'il le fait dépasser, l'avertissement habituel s'affiche.
+- Le bouton ne tient compte que du **plafond de l'année** : les plafonds reportés sont consommés une seule fois et ne se lissent pas en versement mensuel (voir 4.4.4).
+
+#### 4.4.4 Report des plafonds non utilisés
+
+**La règle fiscale**
+- Chaque année, tout contribuable ayant des revenus professionnels dispose d'un plafond de déduction, qu'il ait un PER ou non.
+- La part non utilisée d'un plafond est **reportable** sur les années suivantes : **3 ans** pour les plafonds des années 2025 et antérieures, **5 ans** pour ceux nés à partir de 2026 (loi de finances 2026). Exemple : le plafond 2023 non utilisé expire fin 2026, le plafond 2026 non utilisé reste mobilisable jusqu'en 2031.
+- Les versements d'une année s'imputent **d'abord sur le plafond de l'année**, puis sur les plafonds reportés, **en commençant par le plus ancien**.
+- L'avis d'imposition (rubrique « Plafond épargne retraite ») détaille le plafond de l'année et les plafonds non utilisés des années précédentes, par année d'origine.
+
+**Paramètres** (visibles si les versements sont déduits, dans les paramètres avancés)
+| Paramètre | Défaut |
+|---|---|
+| Plafond annuel (avis d'impôt), **hors report** | 0 = calculé à partir des revenus (10 %, de 4 710 € à 37 680 €), sinon le plancher. Remplace le champ actuel « Plafond de déduction (avis d'impôt) », dont l'aide précise désormais qu'il ne faut pas y inclure les plafonds non utilisés |
+| Plafond non utilisé de l'année N−1 | 0 € |
+| Plafond non utilisé de l'année N−2 | 0 € |
+| Plafond non utilisé de l'année N−3 | 0 € |
+
+- N est l'année de la date de début ; les libellés affichent les vraies années (exemple pour un début en 2026 : « non utilisé en 2025 », « en 2024 », « en 2023 »).
+- Un petit bouton **« Estimer »**, sur la ligne du premier de ces trois champs, les remplit avec le plafond annuel courant, pour le cas fréquent de quelqu'un qui n'a jamais versé sur un PER. L'aide indique que l'avis d'impôt fait foi.
+
+**Calcul, chaque année civile de la phase d'épargne**
+1. Plafond disponible = plafond de l'année + plafonds reportés encore valides.
+2. Les versements de l'année consomment d'abord le plafond de l'année, puis les reports du plus ancien au plus récent.
+3. La part non utilisée du plafond de l'année devient un report, valable 5 ans (règle 2026).
+4. Les reports arrivés à expiration disparaissent.
+5. La part des versements au-delà du plafond disponible n'est pas déduite (règle actuelle, avec son avertissement).
+- Le plafond annuel est supposé constant sur toute la durée (pas d'indexation sur le PASS), comme aujourd'hui.
+
+**Bouton « Utiliser le report »**
+- Petit bouton à côté de « Max », sur la ligne du libellé « Versement régulier », visible si les versements sont déduits et si des plafonds non utilisés sont saisis.
+- Ligne d'aide : « Report disponible : 9 420 € (versement ponctuel en décembre 2026) ».
+- Un clic ajoute un **versement ponctuel** égal au total des plafonds non utilisés saisis, en décembre de la première année. Un second clic n'ajoute pas de doublon.
+
+**Affichage**
+- Carte du PER : une ligne « Plafonds reportés utilisés » avec le montant total, si elle n'est pas nulle.
+- Un avertissement si des plafonds non utilisés **saisis par l'utilisateur** expirent sans avoir servi, avec le montant perdu. Les plafonds de l'année non utilisés pendant la simulation ne déclenchent pas d'avertissement : pour un épargnant qui verse moins que son plafond, il se répéterait chaque année sans rien apprendre.
+- L'avertissement de dépassement compare désormais les versements au plafond disponible, report compris.
+
+**Hors périmètre** : mutualisation des plafonds dans le couple, plafonds des indépendants (TNS).
 
 ### 4.5 Profils de risque des unités de compte (hypothèses, modifiables)
 

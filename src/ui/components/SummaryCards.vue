@@ -9,6 +9,14 @@ defineProps<{ items: { slot: Slot; run: SlotResult }[]; view: 'gross' | 'net' }>
 const { t } = useI18n()
 const f = useFormat()
 
+/** Paramètres d'un avertissement : les montants (plafond, montant perdu…) sont formatés en euros. */
+const EUR_PARAMS = ['cap', 'ceiling', 'amount']
+function warningParams(params?: Record<string, string | number>): Record<string, string | number> {
+  return Object.fromEntries(
+    Object.entries(params ?? {}).map(([k, v]) => [k, EUR_PARAMS.includes(k) ? f.eur(Number(v)) : v]),
+  )
+}
+
 function duration(run: SlotResult): string {
   const first = run.result.points[0]
   const last = run.result.points[run.result.points.length - 1]
@@ -46,6 +54,9 @@ function duration(run: SlotResult): string {
         <div v-if="run.result.summary.taxSavings > 0">
           <dt>{{ t('summary.taxSavings') }}</dt><dd class="pos">+{{ f.eur(run.result.summary.taxSavings) }}</dd>
         </div>
+        <div v-for="line in run.result.extraLines ?? []" :key="line.key">
+          <dt>{{ t(`summary.extra.${line.key}`) }}</dt><dd>{{ f.eur(line.amount) }}</dd>
+        </div>
         <div>
           <dt>{{ view === 'net' ? t('summary.returnNet') : t('summary.returnGross') }}</dt>
           <dd>{{ f.pct(view === 'net' ? run.result.summary.annualReturnNet : run.result.summary.annualReturnGross) }}</dd>
@@ -81,7 +92,7 @@ function duration(run: SlotResult): string {
 
       <ul v-if="run.result.warnings.length" class="warnings">
         <li v-for="w in run.result.warnings" :key="w.code + JSON.stringify(w.params)">
-          {{ t(`warnings.${w.code}`, { ...w.params, cap: w.params?.cap !== undefined ? f.eur(Number(w.params.cap)) : '', ceiling: w.params?.ceiling !== undefined ? f.eur(Number(w.params.ceiling)) : '' }) }}
+          {{ t(`warnings.${w.code}`, warningParams(w.params)) }}
         </li>
       </ul>
     </article>

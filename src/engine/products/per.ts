@@ -4,7 +4,7 @@ import { addMonths, iterateMonths, parseYM } from '../core/dates'
 import { amount, bool, clamp, num, pct, str } from '../core/params'
 import { Recorder } from '../core/recorder'
 import { buildSchedule } from '../core/schedule'
-import type { ParamAction, ParamDef, Product, Scenario, SimParams, SimResult } from '../types'
+import type { Movement, ParamAction, ParamDef, ParamPatch, Product, Scenario, SimParams, SimResult } from '../types'
 import { pctParam, savingsDefaults, savingsParams } from './common'
 import { contractDefaults, contractParams } from './contractParams'
 
@@ -26,16 +26,79 @@ export function perCeiling(p: SimParams): number {
   return clamp((income * c.ceilingRate) / 100, c.ceilingFloor, c.ceilingMax)
 }
 
-/** Bouton « Max » : versement régulier égal au plafond de déduction (SPEC §4.4.3). */
+/** Bouton « Max » : versement régulier égal au plafond de déduction de l'année (SPEC §4.4.3). */
 export const maxDeductible: ParamAction = {
   id: 'maxDeductible',
   visible: (p) => bool(p, 'deducted'),
-  value: (p) => (str(p, 'frequency') === 'yearly' ? Math.floor(perCeiling(p)) : Math.floor(perCeiling(p) / 12)),
+  apply: (p) => ({
+    periodicAmount: str(p, 'frequency') === 'yearly' ? Math.floor(perCeiling(p)) : Math.floor(perCeiling(p) / 12),
+  }),
   hint: (p) => ({
     key: str(p, 'frequency') === 'yearly' ? 'hintYearly' : 'hintMonthly',
     amounts: { amount: Math.floor(perCeiling(p) / 12), ceiling: Math.round(perCeiling(p)) },
   }),
 }
+
+// ---------- Report des plafonds non utilisés (SPEC §4.4.4) ----------
+
+/** Champs des plafonds non utilisés saisis : années N−1, N−2, N−3 (N = année de début). */
+const CARRY_KEYS = ['carryN1', 'carryN2', 'carryN3'] as const
+
+/** Dernière année où un plafond non utilisé de l'année `origin` peut servir : 3 ans jusqu'à 2025, 5 ans ensuite. */
+export function carryLastYear(origin: number): number {
+  return origin + (origin <= c.carryRuleChangeYear - 1 ? c.carryYearsBefore : c.carryYearsAfter)
+}
+
+/** Plafonds non utilisés saisis, du plus ancien au plus récent. */
+function initialCarries(p: SimParams): { origin: number; amount: number; entered: true }[] {
+  const startYear = parseYM(str(p, 'start')).year
+  return CARRY_KEYS.map((key, k) => ({ origin: startYear - 1 - k, amount: amount(p, key), entered: true as const }))
+    .filter((x) => x.amount > 0)
+    .reverse()
+}
+
+const carryTotal = (p: SimParams) => CARRY_KEYS.reduce((acc, key) => acc + amount(p, key), 0)
+
+/** Bouton « Utiliser le report » : versement ponctuel du report disponible, en décembre de la première année. */
+export const useCarryForward: ParamAction = {
+  id: 'useCarryForward',
+  visible: (p) => bool(p, 'deducted') && carryTotal(p) > 0,
+  apply: (p): ParamPatch => {
+    const date = `${parseYM(str(p, 'start')).year}-12`
+    const total = Math.round(carryTotal(p))
+    const exists = p.movements.some((m) => m.kind === 'deposit' && m.date === date && Number(m.amount) === total)
+    if (exists) return {}
+    const movement: Movement = { id: Date.now(), date, amount: total, kind: 'deposit' }
+    return { movements: [...p.movements, movement] }
+  },
+  hint: (p) => ({
+    key: 'hint',
+    amounts: { amount: Math.round(carryTotal(p)) },
+    values: { year: parseYM(str(p, 'start')).year },
+  }),
+}
+
+/** Bouton « Estimer » : plafonds non utilisés supposés entiers (personne n'ayant jamais versé sur un PER). */
+export const estimateCarry: ParamAction = {
+  id: 'estimateCarry',
+  visible: (p) => bool(p, 'deducted'),
+  apply: (p) => {
+    const ceiling = Math.round(perCeiling(p))
+    return { carryN1: ceiling, carryN2: ceiling, carryN3: ceiling }
+  },
+}
+
+const carryParam = (key: (typeof CARRY_KEYS)[number], offset: number, actions?: ParamAction[]): ParamDef => ({
+  key,
+  type: 'number',
+  unit: 'eur',
+  min: 0,
+  step: 100,
+  group: 'advanced',
+  visible: (p) => bool(p, 'deducted'),
+  labelParams: (p) => ({ year: parseYM(str(p, 'start')).year - offset }),
+  actions,
+})
 
 export function annuityTaxableFraction(age: number): number {
   const row = c.annuityTaxableFractions.find((r) => age <= r.maxAge)
@@ -66,7 +129,7 @@ export function annuityTerms(p: SimParams, converted: number, yearsToRetirement:
 }
 
 const savings: ParamDef[] = savingsParams({ withDuration: false }).map((d) =>
-  d.key === 'periodicAmount' ? { ...d, action: maxDeductible } : d,
+  d.key === 'periodicAmount' ? { ...d, actions: [maxDeductible, useCarryForward] } : d,
 )
 
 export const per: Product = {
@@ -90,6 +153,9 @@ export const per: Product = {
     ...contractParams(),
     { key: 'income', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'advanced', visible: (p) => bool(p, 'deducted') },
     { key: 'ceilingOverride', type: 'number', unit: 'eur', min: 0, step: 100, group: 'advanced', visible: (p) => bool(p, 'deducted') },
+    carryParam('carryN1', 1, [estimateCarry]),
+    carryParam('carryN2', 2),
+    carryParam('carryN3', 3),
     {
       key: 'lifeGainPerDecade',
       type: 'number',
@@ -124,6 +190,9 @@ export const per: Product = {
     ...contractDefaults(c),
     income: 0,
     ceilingOverride: 0,
+    carryN1: 0,
+    carryN2: 0,
+    carryN3: 0,
     socialRate: c.socialRate,
   }),
   hasRisk: contractHasRisk,
@@ -160,6 +229,12 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   let yearDeposits = 0
   let savingsTotal = 0
   const yearsAboveCeiling: number[] = []
+
+  /** Plafonds non utilisés encore valides, du plus ancien au plus récent. */
+  let carries: { origin: number; amount: number; entered: boolean }[] = initialCarries(p)
+  let carryUsed = 0
+  /** Plafonds saisis par l'utilisateur et perdus faute d'avoir servi. */
+  let carryLost = 0
 
   /** Fiscalité d'une sortie en capital d'une fraction `ratio` du contrat. */
   const capitalTax = (value: number, ratio: number, tmi: number) => {
@@ -206,14 +281,36 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     if (!m.isYearEnd) continue
     contract.creditEuro()
 
-    if (deducted && yearDeposits > 0) {
-      const deductible = Math.min(yearDeposits, ceiling, freePremiums)
-      deductedPremiums += deductible
-      freePremiums -= deductible
-      const saving = deductible * tmiNow
-      savingsTotal += saving
-      rec.saving(m.i, m.year, saving)
-      if (yearDeposits > ceiling + 0.005) yearsAboveCeiling.push(m.year)
+    if (deducted) {
+      // Imputation : d'abord le plafond de l'année, puis les reports du plus ancien au plus récent.
+      const fromCurrent = Math.min(yearDeposits, ceiling)
+      let rest = yearDeposits - fromCurrent
+      let fromCarry = 0
+      for (const cf of carries) {
+        if (rest <= 0) break
+        const take = Math.min(rest, cf.amount)
+        cf.amount -= take
+        rest -= take
+        fromCarry += take
+      }
+      carryUsed += fromCarry
+      if (rest > 0.005) yearsAboveCeiling.push(m.year)
+
+      // La part non utilisée du plafond de l'année devient reportable ; les reports échus disparaissent.
+      if (ceiling - fromCurrent > 0.005) carries.push({ origin: m.year, amount: ceiling - fromCurrent, entered: false })
+      for (const cf of carries) {
+        if (cf.entered && carryLastYear(cf.origin) <= m.year && cf.amount > 0.005) carryLost += cf.amount
+      }
+      carries = carries.filter((cf) => carryLastYear(cf.origin) > m.year && cf.amount > 0.005)
+
+      const deductible = Math.min(fromCurrent + fromCarry, freePremiums)
+      if (deductible > 0) {
+        deductedPremiums += deductible
+        freePremiums -= deductible
+        const saving = deductible * tmiNow
+        savingsTotal += saving
+        rec.saving(m.i, m.year, saving)
+      }
     }
     yearDeposits = 0
 
@@ -223,8 +320,10 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   }
 
   if (yearsAboveCeiling.length > 0) {
-    rec.warn('perCeilingExceeded', { count: yearsAboveCeiling.length, first: yearsAboveCeiling[0], ceiling: Math.round(ceiling) })
+    rec.warn('perCeilingExceeded', { count: yearsAboveCeiling.length, first: yearsAboveCeiling[0] })
   }
+  if (carryLost > 0.5) rec.warn('perCarryExpired', { amount: Math.round(carryLost) })
+  const extraLines = carryUsed > 0.5 ? [{ key: 'carryUsed', amount: carryUsed }] : undefined
 
   // ---------- Sortie à la retraite ----------
   const lastI = months - 1
@@ -269,6 +368,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       exitTaxes: capitalTaxes,
       netFinalFlow: v - capitalTaxes,
       annuity: { ...annuityBase, indicative: true, endAge: null, totalNet: null },
+      extraLines,
     })
   }
 
@@ -317,5 +417,6 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       endAge: retirementAge + payoutMonths / 12,
       totalNet: (monthlyGross - monthlyTax) * payoutMonths,
     },
+    extraLines,
   })
 }

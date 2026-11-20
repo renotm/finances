@@ -1,4 +1,4 @@
-import type { Annuity, Point, SimResult, Warning, YearRow } from '../types'
+import type { Annuity, ExtraLine, Point, SimResult, Warning, YearRow } from '../types'
 import { addMonths, formatYM, toDecimalYear, type YM } from './dates'
 import { annualIrr, type Flow } from './irr'
 
@@ -138,6 +138,7 @@ export class Recorder {
     netFinalFlow: number
     grossFinalFlow?: number
     annuity?: Annuity
+    extraLines?: ExtraLine[]
   }): SimResult {
     const years = [...this.rows.values()].sort((a, b) => a.year - b.year)
     const sum = (f: SumField) => years.reduce((acc, r) => acc + r[f], 0)
@@ -149,6 +150,7 @@ export class Recorder {
       years,
       warnings: this.warnings,
       annuity: args.annuity,
+      extraLines: args.extraLines,
       summary: {
         totalDeposited: sum('deposits'),
         totalWithdrawn: sum('withdrawals'),
