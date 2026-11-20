@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ParamAction, ParamDef, ParamPatch, ParamValue, SimParams } from '../../engine/types'
+import { PROFILE_TMI } from '../../engine/core/tmi'
 import { useFormat } from '../format'
 import YearMonthInput from './YearMonthInput.vue'
 
@@ -45,10 +46,27 @@ const unitLabel = computed(() => {
   }
 })
 
+const options = computed(() => props.def.optionsFor?.(props.params) ?? props.def.options ?? [])
+
 function optionLabel(o: string | number): string {
   if (typeof o === 'number') return props.def.unit === 'pct' ? `${o} %` : String(o)
+  if (o === PROFILE_TMI) return t('tmi.profileOption')
   return t(`options.${props.def.key}.${o}`)
 }
+
+/** Résumé du calendrier de TMI : « 11 % jusqu'en 2031, puis 30 % jusqu'en 2034, puis 41 % ». */
+const tmiNote = computed(() => {
+  const steps = props.def.tmiNote?.(props.params)
+  if (!steps || steps.length === 0) return ''
+  return steps
+    .map((s, i) => {
+      const next = steps[i + 1]
+      const rate = `${s.tmi} %`
+      const part = next ? t('tmi.until', { rate, year: next.fromYear - 1 }) : rate
+      return i === 0 ? part : t('tmi.then', { part })
+    })
+    .join(', ')
+})
 
 function onNumber(e: Event) {
   const raw = (e.target as HTMLInputElement).value
@@ -62,8 +80,9 @@ function onNumber(e: Event) {
 
 function onSelect(e: Event) {
   const raw = (e.target as HTMLSelectElement).value
-  const isNumeric = props.def.options?.some((o) => typeof o === 'number')
-  emit('update', props.def.key, isNumeric ? Number(raw) : raw)
+  // Une option numérique revient en nombre, les autres (« profile », « monthly »…) en texte.
+  const numeric = options.value.find((o) => typeof o === 'number' && String(o) === raw)
+  emit('update', props.def.key, numeric !== undefined ? Number(raw) : raw)
 }
 </script>
 
@@ -94,7 +113,7 @@ function onSelect(e: Event) {
       />
 
       <select v-else-if="def.type === 'select'" :id="id" :value="value" @change="onSelect">
-        <option v-for="o in def.options" :key="o" :value="o">{{ optionLabel(o) }}</option>
+        <option v-for="o in options" :key="o" :value="o">{{ optionLabel(o) }}</option>
       </select>
 
       <div v-else class="input-unit">
@@ -112,6 +131,7 @@ function onSelect(e: Event) {
       </div>
     </template>
 
+    <p v-if="tmiNote" class="hint">{{ tmiNote }}</p>
     <template v-for="a in actions" :key="a.id">
       <p v-if="a.hint" class="hint">{{ hintOf(a) }}</p>
     </template>

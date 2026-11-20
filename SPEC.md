@@ -1,6 +1,6 @@
 # Simulateur de placements — Spécification v1
 
-> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) livrée. Report des plafonds PER (§4.4.4) : validé, branche `per-report-plafonds`.
+> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) livrée. Report des plafonds PER (§4.4.4) : codé, branche `per-report-plafonds`. Profils et calcul de la TMI (§4.7, §5.5) : codés, branche `profils`.
 > Dernière mise à jour : 20/11/2026
 
 ---
@@ -19,6 +19,7 @@ Une page web qui simule l'évolution d'un placement financier dans le temps et p
 | Sujet | Choix |
 |---|---|
 | Type de site | 100 % statique après build : pas de serveur applicatif, pas de base de données, pas d'authentification |
+| Persistance | Profils seulement, dans le stockage du navigateur (localStorage), voir 5.5 |
 | Stack | Vite + Vue 3 + TypeScript |
 | Graphiques | Chart.js, utilisé directement (le paquet vue-chartjs 5.3.6 publié sur npm est incomplet) |
 | Traductions | vue-i18n, FR (par défaut) et EN |
@@ -283,15 +284,62 @@ Depuis le 1er janvier 2026 (LFSS 2026, +1,4 point de CSG), les revenus du capita
 | Assurance vie | 17,2 % |
 | PER | 18,6 % (paramétrable, voir 4.4) |
 
+### 4.7 Calcul de la TMI (à partir d'un profil, voir 5.5)
+
+La TMI (taux marginal d'imposition) est calculée à partir du **revenu net imposable du foyer** et du **nombre de parts**, avec le barème dans le fichier de config.
+
+**Barème 2026 (revenus 2025), par part**
+| Tranche du quotient familial | Taux |
+|---|---|
+| jusqu'à 11 600 € | 0 % |
+| de 11 601 € à 29 579 € | 11 % |
+| de 29 580 € à 84 577 € | 30 % |
+| de 84 578 € à 181 917 € | 41 % |
+| au-delà de 181 917 € | 45 % |
+
+**Nombre de parts, pour une année donnée**
+- Parts de base : 1 pour une personne célibataire, divorcée ou veuve sans enfant à charge ; 2 pour un couple marié ou pacsé, et pour une personne veuve avec enfant(s) à charge.
+- Enfants à charge **cette année-là** : 0,5 part pour chacun des deux premiers, 1 part à partir du troisième. Le rang suit l'ordre de naissance parmi les enfants encore à charge.
+- Parent isolé (célibataire ou divorcé avec enfant(s) à charge, supposé en assumer seul la charge) : 0,5 part de plus (case T).
+
+**Enfant à charge pour les revenus de l'année Y**
+- né au plus tard en décembre de Y (un enfant né dans l'année compte) ;
+- et âgé de **moins de 18 ans au 1er janvier de Y** ;
+- ou, s'il est **rattaché** après sa majorité : moins de 21 ans au 1er janvier de Y, ou moins de 25 ans s'il fait des études ;
+- ou **invalide** : sans limite d'âge.
+- Hors périmètre : garde alternée (quarts de part), enfants majeurs mariés ou chargés de famille, personnes invalides autres que les enfants.
+
+**TMI année par année**
+- Les enfants quittent le foyer au fil du temps : le nombre de parts, donc la TMI, peut changer pendant la simulation (exemple : un couple passe de 11 % à 30 % quand ses deux enfants ne sont plus à charge).
+- La TMI est donc calculée **pour chaque année civile** de la simulation, avec les enfants encore à charge cette année-là, à **revenu constant** (le revenu net imposable du profil).
+- Le résultat est un **calendrier de TMI** : une liste de changements « à partir de l'année Y : TMI t ».
+
+**Calcul**
+1. Impôt avec toutes les parts = parts × barème(revenu ÷ parts).
+2. Impôt avec les seules parts de base = parts de base × barème(revenu ÷ parts de base).
+3. L'avantage des parts supplémentaires est **plafonné** : 1 807 € par demi-part (4 262 € pour la part accordée au parent isolé avec son premier enfant). Si l'écart entre 2 et 1 dépasse ce plafond, le plafonnement s'applique.
+4. TMI = taux de la tranche où tombe le quotient (revenu ÷ parts), ou, si le plafonnement s'applique, le quotient calculé avec les parts de base.
+- La décote, les réductions et crédits d'impôt sont ignorés : ils changent le montant de l'impôt, pas la tranche.
+- La TMI ainsi calculée est une **valeur par défaut** : l'utilisateur peut la remplacer à la main dans le profil ; elle est alors fixe pour toutes les années.
+
+**Utilisation dans les placements**
+- Le calendrier de TMI remplace la « TMI actuelle » là où elle intervient chaque année :
+  - **PER** : économie d'impôt des versements de l'année Y avec la TMI de Y ; déblocage anticipé imposé avec la TMI de son année ;
+  - **livret bancaire**, option barème : impôt sur les intérêts de l'année Y avec la TMI de Y.
+- La **TMI à la retraite** reste une valeur saisie, fixe.
+- Dans la colonne, le paramètre « TMI actuelle » propose alors la valeur **« Selon le profil »**, avec une ligne d'aide qui résume le calendrier (« 11 % jusqu'en 2031, puis 30 % ») ; choisir un taux dans la liste revient à une TMI fixe.
+- Le tableau détaillé du PER et du livret bancaire affiche une colonne **TMI** quand elle varie.
+- Moteur : un paramètre de colonne `tmiSchedule` (liste `{ fromYear, tmi }`, rempli à partir du profil) ; TMI de l'année Y = dernier changement dont `fromYear` ≤ Y, sinon la TMI fixe.
+
 ## 5. Interface
 
 ### 5.1 Structure de la page
-1. **En-tête** : titre, sélecteur de langue FR/EN, interrupteur Brut/Net.
+1. **En-tête** : titre, personne active et lien « Mon profil » (5.5), sélecteur de langue FR/EN, interrupteur Brut/Net.
 2. **Zone placements** : jusqu'à 3 colonnes (empilées sur mobile). Chaque colonne :
    - choix du type de placement ;
    - paramètres principaux visibles, paramètres avancés repliables ;
    - liste des mouvements ponctuels (ajouter / supprimer) ;
-   - bouton « Réinitialiser aux valeurs par défaut ».
+   - boutons « Valeurs par défaut » et « Appliquer le profil » (5.5).
 3. **Synthèse** : une carte par placement.
 4. **Graphique** : évolution de la valeur des placements comparés.
 5. **Détail** (repliable) : tableau année par année par placement.
@@ -316,6 +364,57 @@ Les résultats se recalculent **en direct** à chaque modification.
 
 ### 5.4 Tableau détaillé (par année)
 Année · versements · retraits · intérêts/gains · frais · impôts et prélèvements · valeur fin d'année · valeur nette si rachat total.
+
+### 5.5 Profils (personnes)
+
+Pour ne pas ressaisir sa situation à chaque visite, l'utilisateur enregistre une ou **plusieurs personnes** dans une page dédiée. Les données sont **conservées dans le navigateur** (localStorage) : elles restent sur cet appareil et dans ce navigateur, ne sont envoyées nulle part, et ne sont pas partagées entre appareils.
+
+**Accès**
+- Un lien **« Mon profil »** dans l'en-tête ouvre la page des profils, à l'adresse `#/profil` (navigation par l'URL, sans dépendance ajoutée). Un lien ramène au simulateur.
+- Dans l'en-tête du simulateur, une liste choisit la **personne active** (ou « Aucune », qui revient aux valeurs par défaut de la config).
+
+**Page des profils**
+- Liste des personnes enregistrées : créer, modifier, dupliquer, supprimer (avec confirmation), choisir la personne active.
+- Chaque modification est **enregistrée automatiquement**.
+- Une mention rappelle où sont stockées les données, et un bouton **« Effacer toutes les données »** (avec confirmation) vide le stockage.
+- Si le stockage du navigateur est indisponible (navigation privée, stockage bloqué), un message prévient que les profils ne seront pas conservés après fermeture de la page ; la page reste utilisable le temps de la visite.
+
+**Champs d'une personne**
+| Champ | Utilisation dans le simulateur |
+|---|---|
+| Nom | Libellé dans les listes |
+| Date de naissance (mois et année) | PER : âge actuel à la date de début de la simulation, en années et mois |
+| Sexe : homme, femme, non précisé | PER : âge de fin de simulation de la rente (hypothèse de durée de vie) : 85 ans pour un homme, 89 ans pour une femme, 0 (espérance de vie retenue) si non précisé. Le **calcul** de la rente reste unisexe, comme chez les assureurs. |
+| Âge de départ à la retraite prévu | PER : âge de départ |
+| Situation familiale : célibataire, marié ou pacsé, divorcé, veuf | Nombre de parts (4.7) ; assurance vie : abattement de couple (9 200 €) si marié ou pacsé |
+| Enfants : pour chacun, date de naissance (mois et année), rattachement après 18 ans (non, jusqu'à 21 ans, jusqu'à 25 ans pour des études ; défaut : jusqu'à 21 ans), case « invalide » | Nombre de parts année par année (4.7) |
+| Revenu net imposable du foyer | Calcul de la TMI (4.7) |
+| TMI | Calculée automatiquement, année par année, et affichée sous forme de calendrier (« 2026-2031 : 11 %, 3 parts ; 2032-2034 : 30 %, 2,5 parts ; à partir de 2035 : 30 %, 2 parts ») ; une case « Saisir la TMI à la main » la remplace par un taux fixe |
+| Revenus professionnels nets de la personne | PER : plafond de déduction (10 %) |
+| Plafond épargne retraite de l'avis d'impôt : plafond de l'année, plafonds non utilisés N−1, N−2, N−3 | PER : plafond annuel et report (4.4.4) |
+| TMI à la retraite estimée | PER |
+
+Valeurs par défaut d'une nouvelle personne : celles de la config (40 ans, départ à 64 ans, TMI actuelle 30 %, à la retraite 11 %…), situation célibataire, sans enfant, revenus non renseignés.
+
+**Utilisation dans le simulateur**
+- Les valeurs de la personne active remplacent les valeurs par défaut de la config pour les paramètres concernés : **nouvelle colonne**, changement de type de placement et bouton **« Valeurs par défaut »**.
+- Les colonnes déjà ouvertes **ne changent pas** quand on modifie le profil ou la personne active, pour qu'un calcul en cours ne bouge pas sans prévenir. Un bouton **« Appliquer le profil »** dans chaque colonne reprend volontairement les valeurs de la personne active.
+- Correspondance avec les paramètres des placements :
+
+| Paramètre | Placements | Valeur tirée du profil |
+|---|---|---|
+| Âge actuel, âge de départ | PER | date de naissance, âge de départ prévu |
+| TMI actuelle | PER, livret bancaire (option barème) | calendrier de TMI (« Selon le profil »), ou TMI saisie à la main |
+| TMI à la retraite | PER | TMI à la retraite estimée |
+| Revenus professionnels, plafond annuel, plafonds non utilisés | PER | revenus professionnels, plafond épargne retraite |
+| Âge de fin de simulation | PER | selon le sexe |
+| Situation (seul / en couple) | assurance vie | en couple si marié ou pacsé |
+
+- Les champs du profil laissés vides ne remplacent rien : la valeur par défaut de la config est gardée.
+
+**Stockage**
+- Une clé `simulateur.profils` contient `{ version, activeId, persons: [...] }`, versionnée pour pouvoir faire évoluer le format.
+- Hors périmètre : mémoriser les simulations (colonnes ouvertes), encours existants des placements, synchronisation entre appareils, mutualisation des plafonds PER du couple, évolution des revenus dans le temps.
 
 ## 6. Architecture
 
@@ -357,3 +456,5 @@ tests/           tests Vitest du moteur
 - Le PER assurantiel est-il à 17,2 % ou 18,6 % de prélèvements sociaux ? Débattu ; 18,6 % par défaut, prudent.
 - Un relèvement du plafond du Livret A en 2027 a été évoqué par une source isolée, non confirmée : 22 950 € conservé.
 - Une proposition de rendre la liquidation du PER obligatoire à l'âge légal a été évoquée, sans valeur de loi à ce jour : non prise en compte.
+- Barème de l'impôt (4.7) : celui de 2026 sur les revenus 2025. Le barème 2027 (revenus 2026) sera fixé par la loi de finances 2027, en discussion ; une source évoque un plafond du quotient familial porté à 1 845 € par demi-part, non confirmé : 1 807 € conservé.
+- Âges de fin de simulation par sexe (5.5) : dérivés de l'espérance de vie INSEE 2025 à 60 ans (23,9 ans pour les hommes, 27,9 ans pour les femmes), arrondis ; à affiner si besoin.

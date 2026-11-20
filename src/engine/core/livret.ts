@@ -9,8 +9,10 @@ export interface LivretOptions {
   cap: number
   /** Intérêts d'une quinzaine pour un solde donné, au mois i. */
   interest: (balance: number, i: number) => number
-  /** Taux global d'imposition des intérêts (0 = exonéré). Impôt payé chaque année, hors du livret. */
-  taxRate: number
+  /** Taux global d'imposition des intérêts d'une année (0 = exonéré). Impôt payé chaque année, hors du livret. */
+  taxRate: (year: number) => number
+  /** TMI de l'année (%), à afficher dans le tableau, si l'impôt en dépend. */
+  tmiOf?: (year: number) => number | null
 }
 
 /**
@@ -59,7 +61,9 @@ export function simulateLivret(p: SimParams, opt: LivretOptions): SimResult {
     if (m.isYearEnd) {
       balance += accrued
       rec.gain(m.year, accrued)
-      const tax = Math.max(0, accrued) * opt.taxRate
+      const tax = Math.max(0, accrued) * opt.taxRate(m.year)
+      const tmi = opt.tmiOf?.(m.year)
+      if (tmi !== undefined && tmi !== null) rec.setTmi(m.year, tmi)
       taxesPaid += tax
       rec.taxOutOfPocket(m.i, m.year, tax)
       accrued = 0

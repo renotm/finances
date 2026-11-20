@@ -1,5 +1,6 @@
 import { config } from '../../config/defaults'
 import { simulateLivret } from '../core/livret'
+import { tmiAt, tmiParam } from '../core/tmi'
 import { amount, num, pct, str } from '../core/params'
 import type { Product } from '../types'
 import { pctParam, savingsDefaults, savingsParams } from './common'
@@ -18,14 +19,7 @@ export const livretBancaire: Product = {
     { key: 'boostCap', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'advanced' },
     { key: 'cap', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'advanced' },
     { key: 'taxMode', type: 'select', options: ['flat', 'bareme'], group: 'advanced' },
-    {
-      key: 'tmi',
-      type: 'select',
-      unit: 'pct',
-      options: config.tmiOptions,
-      group: 'advanced',
-      visible: (p) => p.taxMode === 'bareme',
-    },
+    tmiParam('tmi', 'advanced', (p) => p.taxMode === 'bareme'),
     pctParam('socialRate', 'advanced', 30, 0.1),
   ],
   defaults: () => ({
@@ -45,7 +39,9 @@ export const livretBancaire: Product = {
     const boost = pct(p, 'boostRate')
     const boostMonths = Math.max(0, Math.round(num(p, 'boostMonths')))
     const boostCap = amount(p, 'boostCap')
-    const incomeTax = str(p, 'taxMode') === 'bareme' ? pct(p, 'tmi') : config.pfuIncomeTax / 100
+    const bareme = str(p, 'taxMode') === 'bareme'
+    const incomeTax = (year: number) => (bareme ? tmiAt(p, 'tmi', year) : config.pfuIncomeTax / 100)
+    const social = pct(p, 'socialRate')
 
     const interest = (balance: number, i: number) => {
       const boosted = boost > 0 && (boostMonths === 0 || i < boostMonths)
@@ -57,7 +53,8 @@ export const livretBancaire: Product = {
     return simulateLivret(p, {
       cap: amount(p, 'cap'),
       interest,
-      taxRate: incomeTax + pct(p, 'socialRate'),
+      taxRate: (year) => incomeTax(year) + social,
+      tmiOf: (year) => (bareme ? Math.round(tmiAt(p, 'tmi', year) * 100) : null),
     })
   },
 }

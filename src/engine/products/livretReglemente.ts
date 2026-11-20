@@ -21,7 +21,7 @@ function livretReglemente(id: string, defaults: { rate: number; cap: number }): 
       return simulateLivret(p, {
         cap: amount(p, 'cap'),
         interest: (balance) => (balance * rate) / 24,
-        taxRate: 0,
+        taxRate: () => 0,
       })
     },
   }

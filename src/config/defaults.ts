@@ -91,6 +91,27 @@ export const config = {
     ],
   },
 
+  /** Impôt sur le revenu : barème 2026 (revenus 2025), par part (SPEC §4.7). */
+  incomeTax: {
+    brackets: [
+      { upTo: 11600, rate: 0 },
+      { upTo: 29579, rate: 11 },
+      { upTo: 84577, rate: 30 },
+      { upTo: 181917, rate: 41 },
+      { upTo: Infinity, rate: 45 },
+    ],
+    /** Plafonnement du quotient familial, par demi-part supplémentaire. */
+    qfCapPerHalfPart: 1807,
+    /** Plafond de la part du parent isolé avec son premier enfant (case T). */
+    qfCapSingleParent: 4262,
+    /** Âges limites (au 1er janvier) pour un enfant à charge : mineur, rattaché, rattaché étudiant. */
+    childAgeLimit: 18,
+    attachedAgeLimit: { '21': 21, '25': 25 },
+  },
+
+  /** Profils : âge de fin de simulation de la rente selon le sexe (INSEE 2025, arrondi ; SPEC §5.5). */
+  endAgeBySex: { male: 85, female: 89 },
+
   /** Profils de risque des unités de compte : rendement moyen et écart pour la fourchette basse / haute. */
   riskProfiles: {
     prudent: { rate: 3, spread: 2 },

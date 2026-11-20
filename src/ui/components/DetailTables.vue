@@ -21,6 +21,11 @@ const current = computed(() => props.items[active.value])
 const showSavings = computed(() => current.value?.run.result.years.some((y) => y.taxSavings > 0))
 const showWithdrawals = computed(() => current.value?.run.result.years.some((y) => y.withdrawals > 0))
 const showAnnuity = computed(() => current.value?.run.result.years.some((y) => y.annuityGross > 0))
+/** Colonne TMI seulement quand elle varie d'une année à l'autre (SPEC §4.7). */
+const showTmi = computed(() => {
+  const values = new Set(current.value?.run.result.years.map((y) => y.tmi).filter((v) => v !== null))
+  return values.size > 1
+})
 </script>
 
 <template>
@@ -46,6 +51,7 @@ const showAnnuity = computed(() => current.value?.run.result.years.some((y) => y
         <thead>
           <tr>
             <th>{{ t('table.year') }}</th>
+            <th v-if="showTmi">{{ t('table.tmi') }}</th>
             <th>{{ t('table.deposits') }}</th>
             <th v-if="showWithdrawals">{{ t('table.withdrawals') }}</th>
             <th>{{ t('table.gains') }}</th>
@@ -61,6 +67,7 @@ const showAnnuity = computed(() => current.value?.run.result.years.some((y) => y
         <tbody>
           <tr v-for="y in current.run.result.years" :key="y.year">
             <th scope="row">{{ y.year }}</th>
+            <td v-if="showTmi">{{ y.tmi === null ? '' : `${y.tmi} %` }}</td>
             <td>{{ f.eur(y.deposits) }}</td>
             <td v-if="showWithdrawals">{{ f.eur(y.withdrawals) }}</td>
             <td>{{ f.eur(y.gains) }}</td>

@@ -1,16 +1,33 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { config } from './config/defaults'
 import { runSimulation } from './engine/run'
 import { setLocale, type Locale } from './i18n'
+import { profiles, setActive } from './profiles/store'
 import DetailTables from './ui/components/DetailTables.vue'
 import EvolutionChart from './ui/components/EvolutionChart.vue'
 import ProductPanel from './ui/components/ProductPanel.vue'
+import ProfilePage from './ui/components/ProfilePage.vue'
 import SummaryCards from './ui/components/SummaryCards.vue'
-import { createSlot, MAX_SLOTS, resetSlot, switchProduct, type Slot } from './ui/slots'
+import { applyProfile, createSlot, MAX_SLOTS, resetSlot, switchProduct, type Slot } from './ui/slots'
 
 const { t, locale } = useI18n()
+
+/** Navigation par l'URL : `#/profil` affiche la page des profils, tout le reste le simulateur. */
+const hash = ref(window.location.hash)
+const onHashChange = () => {
+  hash.value = window.location.hash
+  window.scrollTo(0, 0)
+}
+window.addEventListener('hashchange', onHashChange)
+onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
+const onProfilePage = computed(() => hash.value === '#/profil')
+
+function onActiveChange(e: Event) {
+  const raw = (e.target as HTMLSelectElement).value
+  setActive(raw === '' ? null : Number(raw))
+}
 
 const slots = reactive<Slot[]>([createSlot('livretA'), createSlot('assuranceVie')])
 const view = ref<'gross' | 'net'>('net')
@@ -38,7 +55,16 @@ const updatedAt = computed(() => {
         <p class="muted">{{ t('app.subtitle') }}</p>
       </div>
       <div class="topbar__controls">
-        <div class="segmented" role="group" :aria-label="t('app.viewLabel')" :title="t('app.viewHelp')">
+        <div class="topbar__person">
+          <label class="sr-only" for="active-person">{{ t('profile.activeLabel') }}</label>
+          <select id="active-person" class="topbar__select" :value="profiles.activeId ?? ''" @change="onActiveChange">
+            <option value="">{{ t('profile.none') }}</option>
+            <option v-for="p in profiles.persons" :key="p.id" :value="p.id">{{ p.name || t('profile.unnamed') }}</option>
+          </select>
+          <a v-if="!onProfilePage" class="btn-mini topbar__link" href="#/profil">{{ t('profile.link') }}</a>
+          <a v-else class="btn-mini topbar__link" href="#/">{{ t('profile.back') }}</a>
+        </div>
+        <div v-if="!onProfilePage" class="segmented" role="group" :aria-label="t('app.viewLabel')" :title="t('app.viewHelp')">
           <button type="button" :aria-pressed="view === 'gross'" @click="view = 'gross'">{{ t('app.gross') }}</button>
           <button type="button" :aria-pressed="view === 'net'" @click="view = 'net'">{{ t('app.net') }}</button>
         </div>
@@ -57,7 +83,11 @@ const updatedAt = computed(() => {
     </div>
   </header>
 
-  <main class="container">
+  <main v-if="onProfilePage" class="container">
+    <ProfilePage />
+  </main>
+
+  <main v-else class="container">
     <section class="panels" :class="`panels--${slots.length}`">
       <ProductPanel
         v-for="(slot, idx) in slots"
@@ -68,6 +98,7 @@ const updatedAt = computed(() => {
         @remove="removeSlot(idx)"
         @change-product="switchProduct(slot, $event)"
         @reset="resetSlot(slot)"
+        @apply-profile="applyProfile(slot)"
       />
       <button v-if="slots.length < MAX_SLOTS" type="button" class="panel-add" @click="addSlot">
         <span aria-hidden="true">+</span>

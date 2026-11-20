@@ -36,6 +36,7 @@ export class Recorder {
         taxSavings: 0,
         annuityGross: 0,
         annuityNet: 0,
+        tmi: null,
         endValue: 0,
         netValue: 0,
       }
@@ -87,6 +88,11 @@ export class Recorder {
     if (v <= 0) return
     this.add(year, 'taxSavings', v)
     this.netFlows.push({ i: i + 1, amount: v })
+  }
+
+  /** TMI appliquée une année donnée (en %), affichée dans le tableau quand elle varie. */
+  setTmi(year: number, tmi: number) {
+    this.row(year).tmi = tmi
   }
 
   /** Rente versée à la fin du mois i : montant brut et impôts prélevés. */

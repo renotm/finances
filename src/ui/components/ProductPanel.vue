@@ -3,14 +3,18 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getProduct, products } from '../../engine/registry'
 import type { ParamPatch, ParamValue } from '../../engine/types'
+import { profilePatch } from '../../profiles/apply'
+import { activePerson } from '../../profiles/store'
+import { useFormat } from '../format'
 import { slotColor } from '../colors'
 import type { Slot } from '../slots'
 import MovementsEditor from './MovementsEditor.vue'
 import ParamField from './ParamField.vue'
 
 const props = defineProps<{ entry: Slot; index: number; canRemove: boolean }>()
-const emit = defineEmits<{ remove: []; changeProduct: [productId: string]; reset: [] }>()
+const emit = defineEmits<{ remove: []; changeProduct: [productId: string]; reset: []; applyProfile: [] }>()
 const { t } = useI18n()
+const f = useFormat()
 
 const product = computed(() => getProduct(props.entry.productId))
 const visible = computed(() => product.value.params.filter((d) => !d.visible || d.visible(props.entry.params)))
@@ -18,6 +22,11 @@ const mainParams = computed(() => visible.value.filter((d) => d.group === 'main'
 const advancedParams = computed(() => visible.value.filter((d) => d.group === 'advanced'))
 const idPrefix = computed(() => `slot${props.entry.id}`)
 const perYears = computed(() => Number(props.entry.params.retirementAge) - Number(props.entry.params.currentAge))
+
+/** « Appliquer le profil » n'apparaît que si le profil actif concerne ce placement. */
+const profileApplies = computed(
+  () => activePerson.value !== null && Object.keys(profilePatch(activePerson.value, props.entry.productId, props.entry.params)).length > 0,
+)
 
 function update(key: string, value: ParamValue) {
   applyPatch({ [key]: value })
@@ -52,7 +61,7 @@ function applyPatch(patch: ParamPatch) {
 
     <div class="panel__fields">
       <ParamField v-for="d in mainParams" :key="d.key" :def="d" :params="entry.params" :id-prefix="idPrefix" @update="update" @patch="applyPatch" />
-      <p v-if="entry.productId === 'per' && perYears > 0" class="hint">{{ t('hints.durationPer', { years: perYears }) }}</p>
+      <p v-if="entry.productId === 'per' && perYears > 0" class="hint">{{ t('hints.durationPer', { years: f.num(perYears) }) }}</p>
     </div>
 
     <details class="panel__section">
@@ -72,6 +81,17 @@ function applyPatch(patch: ParamPatch) {
       </div>
     </details>
 
-    <button type="button" class="btn-link panel__reset" @click="emit('reset')">↺ {{ t('panel.reset') }}</button>
+    <div class="panel__footer">
+      <button type="button" class="btn-link panel__reset" @click="emit('reset')">↺ {{ t('panel.reset') }}</button>
+      <button
+        v-if="activePerson && profileApplies"
+        type="button"
+        class="btn-link"
+        :title="t('panel.applyProfileHint', { name: activePerson.name })"
+        @click="emit('applyProfile')"
+      >
+        {{ t('panel.applyProfile', { name: activePerson.name }) }}
+      </button>
+    </div>
   </section>
 </template>

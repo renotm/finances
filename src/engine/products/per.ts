@@ -3,6 +3,7 @@ import { Contract, contractHasRisk, contractRates } from '../core/contract'
 import { addMonths, iterateMonths, parseYM } from '../core/dates'
 import { amount, bool, clamp, num, pct, str } from '../core/params'
 import { Recorder } from '../core/recorder'
+import { tmiAt, tmiParam } from '../core/tmi'
 import { buildSchedule } from '../core/schedule'
 import type { ParamAction, ParamDef, ParamPatch, Product, Scenario, SimParams, SimResult } from '../types'
 import { pctParam, savingsDefaults, savingsParams } from './common'
@@ -151,7 +152,7 @@ export const per: Product = {
     { key: 'retirementAge', type: 'number', unit: 'age', min: 50, max: 80, step: 1, group: 'main' },
     ...savings,
     { key: 'deducted', type: 'boolean', group: 'main' },
-    { key: 'tmiNow', type: 'select', unit: 'pct', options: config.tmiOptions, group: 'main' },
+    tmiParam('tmiNow', 'main'),
     { key: 'tmiRetirement', type: 'select', unit: 'pct', options: config.tmiOptions, group: 'main' },
     { key: 'exitMode', type: 'select', options: ['capital', 'annuity', 'mixed'], group: 'main' },
     { ...pctParam('capitalShare', 'main', 100, 5), visible: (p) => p.exitMode === 'mixed' },
@@ -222,7 +223,8 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   months = Math.min(months, 720)
 
   const deducted = bool(p, 'deducted')
-  const tmiNow = pct(p, 'tmiNow')
+  /** TMI de l'année : calendrier du profil ou taux fixe (SPEC §4.7). */
+  const tmiNow = (year: number) => tmiAt(p, 'tmiNow', year)
   const tmiRetirement = pct(p, 'tmiRetirement')
   const entryFee = pct(p, 'entryFee')
   const socialRate = pct(p, 'socialRate')
@@ -274,7 +276,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       contract.creditEuro()
       const v = contract.value
       const ratio = v > 0 ? Math.min(wanted, v) / v : 0
-      const tax = capitalTax(Math.min(wanted, v), ratio, tmiNow)
+      const tax = capitalTax(Math.min(wanted, v), ratio, tmiNow(m.year))
       const w = contract.withdraw(wanted)
       if (w.amount < wanted) rec.warn('withdrawalCapped')
       deductedPremiums *= 1 - ratio
@@ -290,6 +292,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
 
     if (!m.isYearEnd) continue
     contract.creditEuro()
+    rec.setTmi(m.year, Math.round(tmiNow(m.year) * 100))
 
     if (deducted) {
       // Imputation : d'abord le plafond de l'année, puis les reports du plus ancien au plus récent.
@@ -317,7 +320,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       if (deductible > 0) {
         deductedPremiums += deductible
         freePremiums -= deductible
-        const saving = deductible * tmiNow
+        const saving = deductible * tmiNow(m.year)
         savingsTotal += saving
         rec.saving(m.i, m.year, saving)
       }

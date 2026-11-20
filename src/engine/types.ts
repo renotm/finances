@@ -13,13 +13,20 @@ export interface Movement {
 
 export type ParamValue = number | string | boolean
 
-/** Paramètres d'un placement : valeurs simples indexées par clé, plus la liste des mouvements ponctuels. */
-export type SimParams = { [key: string]: ParamValue | Movement[] } & { movements: Movement[] }
+/** Un changement du calendrier de TMI (SPEC §4.7) : à partir de `fromYear`, TMI de `tmi` %. */
+export interface TmiStep {
+  fromYear: number
+  tmi: number
+  parts: number
+}
+
+/** Paramètres d'un placement : valeurs simples indexées par clé, mouvements ponctuels, calendrier de TMI. */
+export type SimParams = { [key: string]: ParamValue | Movement[] | TmiStep[] } & { movements: Movement[] }
 
 export type ParamUnit = 'eur' | 'pct' | 'years' | 'months' | 'age' | 'yearsPerDecade'
 
 /** Modification de paramètres produite par une action (plusieurs clés possibles, mouvements compris). */
-export type ParamPatch = { [key: string]: ParamValue | Movement[] }
+export type ParamPatch = { [key: string]: ParamValue | Movement[] | TmiStep[] }
 
 /** Petit bouton placé sur la ligne d'un libellé, qui remplit un ou plusieurs paramètres (ex. : « Max »). */
 export interface ParamAction {
@@ -39,6 +46,10 @@ export interface ParamDef {
   step?: number
   /** Valeurs possibles d'un select. Une valeur numérique est affichée comme un nombre (avec son unité). */
   options?: readonly (string | number)[]
+  /** Valeurs possibles calculées selon les paramètres (prioritaire sur `options`). */
+  optionsFor?: (p: SimParams) => readonly (string | number)[]
+  /** Calendrier de TMI à résumer sous le champ (« 11 % jusqu'en 2031, puis 30 % »). */
+  tmiNote?: (p: SimParams) => TmiStep[] | null
   group: 'main' | 'advanced'
   visible?: (p: SimParams) => boolean
   /** Ajuste d'autres paramètres quand celui-ci change (ex. : profil de risque → rendement par défaut). */
@@ -66,6 +77,8 @@ export interface YearRow {
   /** Rentes versées dans l'année (PER), brutes et nettes d'impôts. */
   annuityGross: number
   annuityNet: number
+  /** TMI appliquée cette année-là (%), si le placement en dépend ; null sinon. */
+  tmi: number | null
   /** Valeur du placement au 31/12 ; pendant le versement d'une rente, cumul brut perçu. */
   endValue: number
   /** Valeur nette en cas de retrait total à la fin de l'année ; pendant le versement d'une rente, cumul net perçu. */
