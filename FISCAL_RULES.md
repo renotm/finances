@@ -89,3 +89,8 @@ Le profil transmet aux colonnes : situation, enfants (dates de naissance, rattac
 ## 5. Livrets (règles appliquées en phase 4)
 - Livret A, LDDS : intérêts par quinzaine, versement compté à partir de la quinzaine suivante, retrait dès le début de la quinzaine en cours, capitalisation au 31 décembre, exonération d'impôt et de prélèvements sociaux — concordante.
 - Livret bancaire : la banque retient l'acompte de 12,8 % et les prélèvements sociaux lors de l'inscription des intérêts ; l'acompte s'impute sur l'impôt de l'année suivante ; dispense possible sous conditions de revenu ; option pour le barème globale avec CSG déductible — officielle (Bercy infos) et concordante.
+
+**Hypothèses de modélisation des livrets (phase 4)**
+- Intérêts, prélèvements sociaux et acompte arrondis au centime séparément, à l'inscription.
+- Option barème : l'option est globale (tous les revenus de placement du foyer) ; le simulateur l'applique aux seuls intérêts du livret simulé. CSG déductible à 6,8 % (maintien malgré la hausse de la CSG **à confirmer**).
+- La régularisation de l'impôt (paiement ou remboursement) est comptée l'année des intérêts, sans décalage d'un an.

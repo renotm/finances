@@ -116,7 +116,8 @@ describe('TMI année par année dans les placements', () => {
       tmi: 'profile',
       tmiSchedule: schedule,
     })
-    expect(r.years[0].taxes).toBeCloseTo(150 * (0.11 + 0.186), 6)
+    // 2026 à 11 % : impôt 150 × 11 % moins la CSG déductible (10,20 € × 11 %), plus 27,90 € de prélèvements sociaux
+    expect(r.years[0].taxes).toBeCloseTo(27.9 + 150 * 0.11 - 10.2 * 0.11, 2)
     expect(r.years[1].tmi).toBe(30)
   })
 

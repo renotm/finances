@@ -12,8 +12,8 @@
 | 1 | Moteur fiscal commun | terminée |
 | 2 | Corrections du PER | terminée |
 | 3 | Corrections de l'assurance vie | terminée |
-| 4 | Corrections des livrets | en cours |
-| 5 | Cohérence des comparaisons | à faire |
+| 4 | Corrections des livrets | terminée |
+| 5 | Cohérence des comparaisons | en cours |
 | 6 | Validation automatisée | à faire |
 
 ## Phase 0 : plan d'implémentation
@@ -92,6 +92,21 @@
 **Limites restantes** : trois règles « à confirmer » au BOFiP (assiette nette, ordre de l'abattement, primes anciennes dans le seuil), voir FISCAL_RULES.md §4.
 
 100 tests passent, build OK.
+
+## Phase 4 : livrets (terminée)
+
+| Anomalie (AUDIT.md / plan) | Correction | Test(s) |
+|---|---|---|
+| C13 capitalisation des intérêts bruts | retenues à la source (prélèvements sociaux + acompte) avant capitalisation | `PFU sur 10 ans : capitalisation des seuls intérêts nets` |
+| C14 valeur brute fictive | la vue brute est le solde réel ; la vue nette retire les régularisations payées à part | `PFU : 31,4 % retenus…`, `dispense d'acompte` |
+| C15 option barème | impôt au barème (contexte fiscal, décote) moins CSG déductible, régularisation de l'acompte ; avertissement sans contexte | `option barème sans contexte`, `option barème avec contexte fiscal` |
+| Plan : dispense d'acompte | case « Dispense de l'acompte de 12,8 % » | `dispense d'acompte` |
+| C10 arrondis | intérêts et retenues arrondis au centime à l'inscription | `intérêts arrondis au centime` |
+| Plan : dates de valeur, quinzaines, plafonds | revérifiés (C3 à C8 conformes) ; tests inchangés | `Livret A (quinzaines)` |
+
+**Tests existants corrigés** : `flat tax 31,4 %` (la valeur brute est désormais le solde réel 10 102,90 €), `option barème` et `livret bancaire au barème` (CSG déductible), `départ en cours d'année` (intérêts de clôture arrondis au centime : 8,57 €).
+
+104 tests passent, build OK.
 
 ## Journal
 

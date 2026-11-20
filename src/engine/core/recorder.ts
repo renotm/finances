@@ -83,6 +83,13 @@ export class Recorder {
     this.netFlows.push({ i: i + 1, amount: -v })
   }
 
+  /** Régularisation d'impôt en fin de mois i, payée (positive) ou remboursée (négative) hors du placement. */
+  taxAdjustment(i: number, year: number, v: number) {
+    if (v === 0) return
+    this.add(year, 'taxes', v)
+    this.netFlows.push({ i: i + 1, amount: -v })
+  }
+
   /** Économie d'impôt obtenue en fin de mois i. */
   saving(i: number, year: number, v: number) {
     if (v <= 0) return

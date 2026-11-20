@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { simulate } from './helpers'
 
 describe('Livret A (quinzaines)', () => {
+  it('intérêts arrondis au centime à leur inscription', () => {
+    // 1 234,56 € un an à 1,7 % : 20,98752 € → 20,99 €
+    expect(simulate('livretA', { initialCapital: 1234.56, rate: 1.7 }).summary.gains).toBe(20.99)
+  })
+
   it('capital seul pendant un an : 24 quinzaines au taux', () => {
     const r = simulate('livretA', { initialCapital: 1200, rate: 1.7 })
     expect(r.summary.gains).toBeCloseTo(20.4, 6)
@@ -30,7 +35,8 @@ describe('Livret A (quinzaines)', () => {
     const r = simulate('livretA', { start: '2026-07', initialCapital: 1000, rate: 1.7 })
     expect(r.years.map((y) => y.year)).toEqual([2026, 2027])
     expect(r.years[0].endValue).toBeCloseTo(1008.5, 6)
-    expect(r.summary.finalGross).toBeCloseTo(1008.5 + (1008.5 * 0.017) / 2, 6)
+    // intérêts de clôture : 1 008,50 × 1,7 % / 2 = 8,57225 €, inscrits arrondis au centime (8,57 €)
+    expect(r.summary.finalGross).toBeCloseTo(1008.5 + 8.57, 6)
   })
 
   it('plafond : les versements au-delà sont bloqués', () => {
@@ -67,16 +73,49 @@ describe('Livret A (quinzaines)', () => {
 })
 
 describe('Livret bancaire', () => {
-  it('flat tax 31,4 % payée chaque année', () => {
+  it("PFU : 31,4 % retenus par la banque à l'inscription des intérêts, seuls les intérêts nets sont capitalisés", () => {
     const r = simulate('livretBancaire', { initialCapital: 10000, baseRate: 1.5 })
-    expect(r.summary.finalGross).toBeCloseTo(10150, 6)
-    expect(r.summary.taxes).toBeCloseTo(150 * 0.314, 6)
-    expect(r.summary.finalNet).toBeCloseTo(10150 - 47.1, 6)
+    // 150 € d'intérêts : 27,90 € de prélèvements sociaux + 19,20 € d'acompte retenus ; solde réel 10 102,90 €
+    expect(r.summary.finalGross).toBeCloseTo(10102.9, 6)
+    expect(r.summary.taxes).toBeCloseTo(47.1, 6)
+    expect(r.summary.finalNet).toBeCloseTo(10102.9, 6)
   })
 
-  it('option barème : TMI + prélèvements sociaux', () => {
+  it('PFU sur 10 ans : capitalisation des seuls intérêts nets (calcul indépendant année par année)', () => {
+    let b = 10000
+    for (let y = 0; y < 10; y++) {
+      const i = Math.round(b * 0.015 * 100) / 100
+      b += i - Math.round(i * 0.186 * 100) / 100 - Math.round(i * 0.128 * 100) / 100
+    }
+    const r = simulate('livretBancaire', { initialCapital: 10000, baseRate: 1.5, durationYears: 10 })
+    expect(r.summary.finalGross).toBeCloseTo(b, 6)
+    expect(r.summary.finalNet).toBeCloseTo(b, 6)
+  })
+
+  it("dispense d'acompte : seuls les prélèvements sociaux sont retenus, l'impôt est payé à part", () => {
+    const r = simulate('livretBancaire', { initialCapital: 10000, baseRate: 1.5, pfnlExemption: true })
+    expect(r.summary.finalGross).toBeCloseTo(10000 + 150 - 27.9, 6)
+    expect(r.summary.finalNet).toBeCloseTo(10102.9, 6)
+  })
+
+  it("option barème sans contexte fiscal : TMI, CSG déductible, régularisation de l'acompte", () => {
     const r = simulate('livretBancaire', { initialCapital: 10000, baseRate: 1.5, taxMode: 'bareme', tmi: 11 })
-    expect(r.summary.taxes).toBeCloseTo(150 * (0.11 + 0.186), 6)
+    // impôt 150 × 11 % − 10,20 € de CSG déductible × 11 % ; acompte de 19,20 € remboursé en partie
+    expect(r.summary.taxes).toBeCloseTo(27.9 + 150 * 0.11 - 10.2 * 0.11, 2)
+    expect(r.warnings.map((w) => w.code)).toContain('taxApproxBareme')
+  })
+
+  it('option barème avec contexte fiscal : impôt réel, décote comprise', () => {
+    // célibataire, 20 000 € : dans la zone de décote, le taux marginal effectif est 11 % × 1,4525 = 15,98 %
+    // impôt(20 150) − impôt(20 000) = 469,08 − 445,11 = 23,97 € ; CSG déductible 10,20 € → 1,63 €
+    const r = simulate('livretBancaire', {
+      initialCapital: 10000,
+      baseRate: 1.5,
+      taxMode: 'bareme',
+      taxContext: { situation: 'single', children: [], livesAlone: true, income: 20000, retirementIncome: null, retirementPensions: null },
+    })
+    expect(r.summary.taxes).toBeCloseTo(27.9 + 23.97 - 1.63, 1)
+    expect(r.summary.finalNet).toBeCloseTo(10102.9 - (23.97 - 1.63 - 19.2), 1)
   })
 
   it('boost limité dans le temps', () => {

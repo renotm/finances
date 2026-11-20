@@ -4,22 +4,33 @@ import { amount, durationMonths, num, str } from './params'
 import { Recorder } from './recorder'
 import { buildSchedule } from './schedule'
 
+/** Fiscalité des intérêts d'une année, au moment de leur inscription au 31 décembre. */
+export interface InterestTax {
+  /** Montant retenu par la banque sur les intérêts (prélèvements sociaux, acompte de 12,8 %) : il n'est pas capitalisé. */
+  withheld: number
+  /** Régularisation de l'impôt payée de sa poche (positive) ou remboursée (négative), hors du livret. */
+  outOfPocket: number
+  /** TMI de l'année (%), à afficher dans le tableau, si l'impôt en dépend. */
+  tmi?: number | null
+}
+
 export interface LivretOptions {
   /** Plafond de versements (0 = sans plafond). */
   cap: number
   /** Intérêts d'une quinzaine pour un solde donné, au mois i. */
   interest: (balance: number, i: number) => number
-  /** Taux global d'imposition des intérêts d'une année (0 = exonéré). Impôt payé chaque année, hors du livret. */
-  taxRate: (year: number) => number
-  /** TMI de l'année (%), à afficher dans le tableau, si l'impôt en dépend. */
-  tmiOf?: (year: number) => number | null
+  /** Fiscalité des intérêts inscrits (absent : intérêts exonérés). */
+  tax?: (year: number, interest: number) => InterestTax
 }
+
+const cents = (x: number) => Math.round(x * 100) / 100
 
 /**
  * Livret d'épargne, intérêts calculés par quinzaines (24 par an) :
  * - un versement du 1er du mois porte intérêt à partir du 16 (quinzaine suivante) ;
  * - un retrait du 1er du mois cesse de porter intérêt dès le 1er (quinzaine en cours) ;
- * - les intérêts sont crédités et capitalisés au 31 décembre, ou à la fin de la simulation (clôture).
+ * - les intérêts sont arrondis au centime, inscrits et capitalisés au 31 décembre, ou à la clôture ;
+ * - les retenues de la banque sont déduites avant capitalisation : la valeur brute affichée est le solde réel du livret.
  */
 export function simulateLivret(p: SimParams, opt: LivretOptions): SimResult {
   const start = parseYM(str(p, 'start'))
@@ -34,7 +45,8 @@ export function simulateLivret(p: SimParams, opt: LivretOptions): SimResult {
   rec.startPoint(balance, balance)
 
   let accrued = 0
-  let taxesPaid = 0
+  /** Régularisations d'impôt payées (ou remboursées) hors du livret, cumulées. */
+  let outOfPocket = 0
   let blockedMonths = 0
 
   for (const m of iterateMonths(start, months)) {
@@ -59,15 +71,16 @@ export function simulateLivret(p: SimParams, opt: LivretOptions): SimResult {
     accrued += opt.interest(firstHalf, m.i) + opt.interest(secondHalf, m.i)
 
     if (m.isYearEnd) {
-      balance += accrued
-      rec.gain(m.year, accrued)
-      const tax = Math.max(0, accrued) * opt.taxRate(m.year)
-      const tmi = opt.tmiOf?.(m.year)
-      if (tmi !== undefined && tmi !== null) rec.setTmi(m.year, tmi)
-      taxesPaid += tax
-      rec.taxOutOfPocket(m.i, m.year, tax)
+      const interest = cents(accrued)
+      const t = opt.tax ? opt.tax(m.year, interest) : { withheld: 0, outOfPocket: 0 }
+      balance += interest - t.withheld
+      rec.gain(m.year, interest)
+      rec.tax(m.year, t.withheld)
+      if (t.outOfPocket !== 0) rec.taxAdjustment(m.i, m.year, t.outOfPocket)
+      if (t.tmi !== undefined && t.tmi !== null) rec.setTmi(m.year, t.tmi)
+      outOfPocket += t.outOfPocket
       accrued = 0
-      rec.close(m.i, m.year, balance, balance - taxesPaid)
+      rec.close(m.i, m.year, balance, balance - outOfPocket)
     }
   }
 
@@ -76,7 +89,7 @@ export function simulateLivret(p: SimParams, opt: LivretOptions): SimResult {
   return rec.finish({
     months,
     finalGross: balance,
-    finalNet: balance - taxesPaid,
+    finalNet: balance - outOfPocket,
     exitTaxes: 0,
     netFinalFlow: balance,
   })

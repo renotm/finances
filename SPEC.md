@@ -75,7 +75,7 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
   - Un versement porte intérêt à partir de la quinzaine qui suit : un versement du 1er rapporte à partir du 16 (règle stricte).
   - Un retrait cesse de porter intérêt dès le début de la quinzaine où il a lieu : un retrait du 1er ne rapporte plus rien dès le 1er.
   - Si la simulation se termine en cours d'année, les intérêts courus sont versés à la clôture.
-- Les intérêts sont **crédités et capitalisés au 31 décembre**. Les intérêts capitalisés peuvent faire dépasser le plafond (c'est légal).
+- Les intérêts sont **arrondis au centime, crédités et capitalisés au 31 décembre**. Les intérêts capitalisés peuvent faire dépasser le plafond (c'est légal).
 - **Plafond** : un versement qui ferait dépasser le plafond est **réduit ou bloqué**, avec un message. Un **capital initial supérieur au plafond est autorisé** (cas d'un livret existant) ; dans ce cas aucun versement n'est accepté tant que le solde dépasse le plafond.
 - **Fiscalité** : aucune (intérêts exonérés d'impôt et de prélèvements sociaux). Brut = net.
 
@@ -96,10 +96,12 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 **Règles**
 - Intérêts par quinzaines, capitalisés au 31 décembre, comme 4.1.
 - Pendant la durée du boost, la part du solde sous le plafond du boost est rémunérée au taux boosté, le reste au taux de base.
-- **Fiscalité** : intérêts imposés chaque année à la capitalisation :
-  - flat tax : 12,8 % d'impôt + 18,6 % de prélèvements sociaux = 31,4 % (taux 2026) ;
-  - option barème : TMI + prélèvements sociaux.
-- Vue brute : intérêts avant impôt ; vue nette : intérêts après impôt (l'impôt est payé à part chaque année, il n'est pas prélevé sur le livret, mais il est déduit dans la vue nette).
+- **Fiscalité** : à l'inscription des intérêts (31 décembre), la banque **retient** les prélèvements sociaux (18,6 %) et l'acompte d'impôt de 12,8 % ; seuls les intérêts nets sont capitalisés.
+  - PFU : l'acompte vaut l'impôt définitif (31,4 % au total) ;
+  - **dispense d'acompte** (case à cocher, sous condition de revenu fiscal de référence) : seuls les prélèvements sociaux sont retenus, l'impôt est payé à part ;
+  - **option barème** : impôt définitif = impôt supplémentaire au barème (avec le contexte fiscal du profil, décote comprise ; sinon TMI, approximation signalée) moins l'économie due à la CSG déductible (6,8 % des intérêts) ; la différence avec l'acompte est payée ou remboursée hors du livret.
+- **Vue brute** : solde réel du livret (intérêts nets des retenues). **Vue nette** : solde réel moins les régularisations d'impôt payées à part (plus les remboursements). La ligne « Intérêts » de la synthèse reste celle des intérêts bruts.
+- La régularisation est comptée au 31 décembre de l'année des intérêts (en réalité l'année suivante).
 
 ### 4.3 Assurance vie
 
