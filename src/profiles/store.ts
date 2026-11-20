@@ -1,23 +1,42 @@
 import { computed, reactive, watch } from 'vue'
-import { newPerson, type Person } from './person'
+import { newPerson, upgradePerson, type Person } from './person'
 
 /** Clé et version du format enregistré dans le navigateur (SPEC §5.5). */
 const STORAGE_KEY = 'simulateur.profils'
-const VERSION = 1
+/** v1 : profils initiaux. v2 : contexte fiscal (vit seul, revenus et pensions à la retraite, plafond du conjoint). */
+export const PROFILES_VERSION = 2
 
-interface ProfilesState {
+export interface ProfilesState {
   version: number
   activeId: number | null
   persons: Person[]
 }
 
+/**
+ * Lit un état enregistré et le met au format courant, sans perte : les champs ajoutés depuis prennent leur
+ * valeur par défaut. Renvoie null pour un format inconnu ou plus récent (il n'est alors jamais écrasé).
+ */
+export function migrateProfiles(parsed: unknown): ProfilesState | null {
+  const s = parsed as Partial<ProfilesState> | null
+  if (!s || !Array.isArray(s.persons) || typeof s.version !== 'number') return null
+  if (s.version > PROFILES_VERSION || s.version < 1) return null
+  return {
+    version: PROFILES_VERSION,
+    activeId: s.activeId ?? null,
+    persons: s.persons.filter((p) => p && typeof p.id === 'number').map((p) => upgradePerson(p)),
+  }
+}
+
+/** Vrai si un état existe dans le navigateur mais n'a pas pu être lu : on ne l'écrase pas. */
+let protectExisting = false
+
 function readStorage(): { state: ProfilesState | null; available: boolean } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { state: null, available: true }
-    const parsed = JSON.parse(raw) as ProfilesState
-    if (parsed?.version !== VERSION || !Array.isArray(parsed.persons)) return { state: null, available: true }
-    return { state: parsed, available: true }
+    const state = migrateProfiles(JSON.parse(raw))
+    if (!state) protectExisting = true
+    return { state, available: true }
   } catch {
     return { state: null, available: false }
   }
@@ -37,10 +56,19 @@ function probeStorage(): boolean {
 const loaded = readStorage()
 
 /** Profils enregistrés et personne active, réactifs, sauvegardés automatiquement. */
-export const profiles = reactive<ProfilesState>(loaded.state ?? { version: VERSION, activeId: null, persons: [] })
+export const profiles = reactive<ProfilesState>(loaded.state ?? { version: PROFILES_VERSION, activeId: null, persons: [] })
 
-/** Faux si le navigateur refuse le stockage (navigation privée, stockage bloqué). */
-export const storageAvailable = loaded.available && probeStorage()
+/** Faux si le navigateur refuse le stockage (navigation privée, stockage bloqué) ou si un format illisible est protégé. */
+export const storageAvailable = loaded.available && probeStorage() && !protectExisting
+
+// Enregistre tout de suite un état migré, pour que le format courant soit écrit une seule fois.
+if (storageAvailable && loaded.state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles))
+  } catch {
+    // ignoré
+  }
+}
 
 watch(
   profiles,

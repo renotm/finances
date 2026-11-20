@@ -20,13 +20,30 @@ export interface TmiStep {
   parts: number
 }
 
-/** Paramètres d'un placement : valeurs simples indexées par clé, mouvements ponctuels, calendrier de TMI. */
-export type SimParams = { [key: string]: ParamValue | Movement[] | TmiStep[] } & { movements: Movement[] }
+/**
+ * Contexte fiscal du foyer, transmis par le profil (SPEC §4.7, FISCAL_RULES.md §1).
+ * Permet de calculer l'impôt réel (barème, quotient familial, décote) au lieu d'appliquer une TMI.
+ */
+export interface TaxContext {
+  situation: 'single' | 'married' | 'divorced' | 'widowed'
+  children: { id: number; birth: YearMonth; attachment: 'none' | '21' | '25'; disabled: boolean }[]
+  /** Personne seule vivant seule : condition de la demi-part de parent isolé. */
+  livesAlone: boolean
+  /** Revenu net imposable du foyer pendant la phase d'épargne, hors placement simulé (supposé constant). */
+  income: number
+  /** Revenu net imposable du foyer à la retraite, hors PER simulé (null : non renseigné). */
+  retirementIncome: number | null
+  /** Pensions brutes du foyer à la retraite, pour le plafond de l'abattement de 10 % (null : non renseigné). */
+  retirementPensions: number | null
+}
+
+/** Paramètres d'un placement : valeurs simples indexées par clé, mouvements ponctuels, calendrier de TMI, contexte fiscal. */
+export type SimParams = { [key: string]: ParamValue | Movement[] | TmiStep[] | TaxContext | null } & { movements: Movement[] }
 
 export type ParamUnit = 'eur' | 'pct' | 'years' | 'months' | 'age' | 'yearsPerDecade'
 
 /** Modification de paramètres produite par une action (plusieurs clés possibles, mouvements compris). */
-export type ParamPatch = { [key: string]: ParamValue | Movement[] | TmiStep[] }
+export type ParamPatch = { [key: string]: ParamValue | Movement[] | TmiStep[] | TaxContext | null }
 
 /** Petit bouton placé sur la ligne d'un libellé, qui remplit un ou plusieurs paramètres (ex. : « Max »). */
 export interface ParamAction {

@@ -1,4 +1,5 @@
 import { config } from '../../config/defaults'
+import { fiscal } from '../../config/fiscal'
 import { Contract, contractHasRisk, contractRates } from '../core/contract'
 import { iterateMonths, monthsBetween, parseYM, type YM } from '../core/dates'
 import { amount, bool, durationMonths, num, pct, str } from '../core/params'
@@ -8,7 +9,7 @@ import type { Product, Scenario, SimParams, SimResult } from '../types'
 import { pctParam, savingsDefaults, savingsParams } from './common'
 import { contractDefaults, contractParams } from './contractParams'
 
-const c = config.assuranceVie
+const c = { ...config.assuranceVie, ...fiscal.lifeInsurance }
 
 export const assuranceVie: Product = {
   id: 'assuranceVie',
@@ -43,7 +44,7 @@ function simulateAssuranceVie(p: SimParams, scenario: Scenario): SimResult {
   const opening: YM = existing ? parseYM(str(p, 'openingDate')) : start
   const entryFee = pct(p, 'entryFee')
   const socialRate = pct(p, 'socialRate')
-  const pfu = config.pfuIncomeTax / 100
+  const pfu = fiscal.pfuIncomeTax / 100
   const reduced = c.reducedRate / 100
   const allowance = str(p, 'household') === 'couple' ? c.allowanceCouple : c.allowanceSingle
 

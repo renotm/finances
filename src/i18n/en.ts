@@ -86,6 +86,11 @@ const en: typeof fr = {
     addChild: 'Add a child',
     childrenHint: 'A child is a dependent until 18, or until 21 or 25 if still attached to the household. A single or divorced parent is assumed to support them alone (single-parent half share).',
     taxableIncome: 'Household net taxable income',
+    livesAlone: 'I live alone with my children (no cohabiting partner)',
+    livesAloneHint: 'Required for the single-parent half share (box T). Not granted when cohabiting.',
+    retirementIncome: 'Household net taxable income in retirement (excluding the PER)',
+    retirementPensions: 'Household gross retirement pensions',
+    retirementHint: 'Used to compute the actual tax on PER payouts (tax scale, capped 10% allowance). If empty, the retirement marginal rate is used and the result is flagged as approximate.',
     tmiTitle: 'Marginal tax rate',
     tmiManual: 'Enter the marginal rate manually (fixed rate)',
     tmiNeedsIncome: 'Enter the net taxable income to compute the marginal rate year by year.',
@@ -144,6 +149,7 @@ const en: typeof fr = {
     lifeGainPerDecade: 'Life expectancy increase',
     technicalRate: 'Technical rate',
     arrearsFee: 'Annuity payment fees',
+    spouseCeiling: 'Spouse\'s ceiling available each year (pooling)',
   },
   actions: {
     maxDeductible: {

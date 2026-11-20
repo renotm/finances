@@ -61,7 +61,23 @@ function wipe() {
 }
 
 /** Champ numérique facultatif : vide = non renseigné (null). */
-type NullableKey = 'retirementAge' | 'taxableIncome' | 'tmiRetirement' | 'professionalIncome' | 'ceilingYear' | 'carryN1' | 'carryN2' | 'carryN3'
+type NullableKey =
+  | 'retirementAge'
+  | 'taxableIncome'
+  | 'tmiRetirement'
+  | 'professionalIncome'
+  | 'ceilingYear'
+  | 'carryN1'
+  | 'carryN2'
+  | 'carryN3'
+  | 'retirementIncome'
+  | 'retirementPensions'
+  | 'spouseCeiling'
+
+/** La demi-part de parent isolé ne concerne qu'un célibataire ou divorcé avec enfant(s). */
+const showLivesAlone = computed(
+  () => !!edited.value && (edited.value.situation === 'single' || edited.value.situation === 'divorced') && edited.value.children.length > 0,
+)
 function setNullable(key: NullableKey, e: Event) {
   if (!edited.value) return
   const raw = (e.target as HTMLInputElement).value.trim()
@@ -199,6 +215,12 @@ const parts = (n: number) => f.num(n)
           <p class="hint">{{ t('profile.childrenHint') }}</p>
         </div>
 
+        <div v-if="showLivesAlone" class="field field--check">
+          <input id="pf-alone" v-model="edited.livesAlone" type="checkbox" />
+          <label for="pf-alone">{{ t('profile.livesAlone') }}</label>
+          <p class="hint">{{ t('profile.livesAloneHint') }}</p>
+        </div>
+
         <div class="field">
           <label for="pf-income">{{ t('profile.taxableIncome') }}</label>
           <div class="input-unit">
@@ -237,6 +259,21 @@ const parts = (n: number) => f.num(n)
           </template>
         </template>
         <div class="field">
+          <label for="pf-ret-income">{{ t('profile.retirementIncome') }}</label>
+          <div class="input-unit">
+            <input id="pf-ret-income" type="number" min="0" step="1000" :value="edited.retirementIncome ?? ''" @change="setNullable('retirementIncome', $event)" />
+            <span class="unit">€</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pf-ret-pensions">{{ t('profile.retirementPensions') }}</label>
+          <div class="input-unit">
+            <input id="pf-ret-pensions" type="number" min="0" step="1000" :value="edited.retirementPensions ?? ''" @change="setNullable('retirementPensions', $event)" />
+            <span class="unit">€</span>
+          </div>
+        </div>
+        <p class="hint">{{ t('profile.retirementHint') }}</p>
+        <div class="field">
           <label for="pf-tmi-ret">{{ t('params.tmiRetirement') }}</label>
           <select id="pf-tmi-ret" :value="edited.tmiRetirement ?? ''" @change="setNullable('tmiRetirement', $event)">
             <option value="">{{ t('profile.notSet') }}</option>
@@ -265,6 +302,13 @@ const parts = (n: number) => f.num(n)
           <label :for="`pf-${c.key}`">{{ t(`params.${c.key}`, { year: thisYear - c.offset }) }}</label>
           <div class="input-unit">
             <input :id="`pf-${c.key}`" type="number" min="0" step="100" :value="edited[c.key] ?? ''" @change="setNullable(c.key, $event)" />
+            <span class="unit">€</span>
+          </div>
+        </div>
+        <div v-if="edited.situation === 'married'" class="field">
+          <label for="pf-spouse">{{ t('params.spouseCeiling') }}</label>
+          <div class="input-unit">
+            <input id="pf-spouse" type="number" min="0" step="100" :value="edited.spouseCeiling ?? ''" @change="setNullable('spouseCeiling', $event)" />
             <span class="unit">€</span>
           </div>
         </div>

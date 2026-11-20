@@ -1,7 +1,7 @@
 import { config } from '../config/defaults'
 import { addMonths, currentYM, formatYM, parseYM } from '../engine/core/dates'
 import { computeTmi, childrenInCharge, tmiSchedule, type Child, type FamilySituation, type TmiStep } from '../engine/tax/incomeTax'
-import type { YearMonth } from '../engine/types'
+import type { TaxContext, YearMonth } from '../engine/types'
 
 export type Sex = 'male' | 'female' | 'unspecified'
 
@@ -30,6 +30,14 @@ export interface Person {
   carryN1: number | null
   carryN2: number | null
   carryN3: number | null
+  /** Célibataire ou divorcé vivant seul (demi-part de parent isolé) ; faux en cas de concubinage. */
+  livesAlone: boolean
+  /** Revenu net imposable du foyer à la retraite, hors PER simulé. */
+  retirementIncome: number | null
+  /** Pensions brutes du foyer à la retraite (plafond de l'abattement de 10 %). */
+  retirementPensions: number | null
+  /** Plafond PER du conjoint disponible chaque année pour la mutualisation (case 6QR). */
+  spouseCeiling: number | null
 }
 
 export function newPerson(id: number, name: string): Person {
@@ -50,7 +58,19 @@ export function newPerson(id: number, name: string): Person {
     carryN1: null,
     carryN2: null,
     carryN3: null,
+    livesAlone: true,
+    retirementIncome: null,
+    retirementPensions: null,
+    spouseCeiling: null,
   }
+}
+
+/**
+ * Complète une personne enregistrée dans un format antérieur : les champs absents prennent leur valeur
+ * par défaut, aucun champ existant n'est supprimé ni modifié.
+ */
+export function upgradePerson(raw: Partial<Person> & { id: number }): Person {
+  return { ...newPerson(raw.id, raw.name ?? ''), ...raw }
 }
 
 /** Âge à une date, en années décimales (mois compris). */
@@ -67,7 +87,7 @@ const SCHEDULE_YEARS = 60
 export function personTmiSchedule(person: Person, fromYear: number): TmiStep[] | null {
   if (person.tmiManual || person.taxableIncome === null) return null
   return tmiSchedule(
-    { situation: person.situation, children: person.children, income: person.taxableIncome },
+    { situation: person.situation, children: person.children, income: person.taxableIncome, livesAlone: person.livesAlone },
     fromYear,
     fromYear + SCHEDULE_YEARS,
   )
@@ -76,5 +96,18 @@ export function personTmiSchedule(person: Person, fromYear: number): TmiStep[] |
 /** Détail de la TMI d'une année (pour l'affichage dans la page des profils). */
 export function personTmiDetail(person: Person, year: number) {
   if (person.taxableIncome === null) return null
-  return computeTmi(person.situation, childrenInCharge(person.children, year), person.taxableIncome)
+  return computeTmi(person.situation, childrenInCharge(person.children, year), person.taxableIncome, person.livesAlone)
+}
+
+/** Contexte fiscal complet de la personne, ou null si le revenu n'est pas renseigné ou la TMI saisie à la main. */
+export function personTaxContext(person: Person): TaxContext | null {
+  if (person.tmiManual || person.taxableIncome === null) return null
+  return {
+    situation: person.situation,
+    children: person.children.map((c) => ({ ...c })),
+    livesAlone: person.livesAlone,
+    income: person.taxableIncome,
+    retirementIncome: person.retirementIncome,
+    retirementPensions: person.retirementPensions,
+  }
 }

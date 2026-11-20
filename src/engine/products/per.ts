@@ -1,4 +1,5 @@
 import { config } from '../../config/defaults'
+import { fiscal } from '../../config/fiscal'
 import { Contract, contractHasRisk, contractRates } from '../core/contract'
 import { addMonths, iterateMonths, parseYM } from '../core/dates'
 import { amount, bool, clamp, num, pct, str } from '../core/params'
@@ -9,8 +10,8 @@ import type { ParamAction, ParamDef, ParamPatch, Product, Scenario, SimParams, S
 import { pctParam, savingsDefaults, savingsParams } from './common'
 import { contractDefaults, contractParams } from './contractParams'
 
-const c = config.per
-const a = c.annuity
+const c = { ...config.per, ...fiscal.per, pensionAllowance: fiscal.pensionAllowance.rate }
+const a = { ...config.per.annuity, technicalRate: 0.5 }
 
 /** Durée maximale de la phase de versement (garde-fou). */
 const MAX_PAYOUT_MONTHS = 70 * 12
@@ -228,7 +229,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   const tmiRetirement = pct(p, 'tmiRetirement')
   const entryFee = pct(p, 'entryFee')
   const socialRate = pct(p, 'socialRate')
-  const pfu = config.pfuIncomeTax / 100
+  const pfu = fiscal.pfuIncomeTax / 100
   const ceiling = perCeiling(p)
 
   const contract = new Contract(contractRates(p, scenario))

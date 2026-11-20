@@ -84,6 +84,11 @@ export default {
     addChild: 'Ajouter un enfant',
     childrenHint: 'Un enfant est à charge jusqu\'à 18 ans, ou jusqu\'à 21 ou 25 ans s\'il reste rattaché au foyer. Un parent célibataire ou divorcé est supposé en avoir seul la charge (demi-part de parent isolé).',
     taxableIncome: 'Revenu net imposable du foyer',
+    livesAlone: 'Je vis seul(e) avec mes enfants (pas de concubinage)',
+    livesAloneHint: 'Condition de la demi-part de parent isolé (case T). En concubinage, elle n\'est pas accordée.',
+    retirementIncome: 'Revenu net imposable du foyer à la retraite (hors PER)',
+    retirementPensions: 'Pensions de retraite brutes du foyer',
+    retirementHint: 'Servent à calculer l\'impôt réel sur la sortie du PER (barème, abattement de 10 % plafonné). Vides : la TMI à la retraite est utilisée, et le résultat est signalé comme approximatif.',
     tmiTitle: 'Taux marginal d\'imposition',
     tmiManual: 'Saisir la TMI à la main (taux fixe)',
     tmiNeedsIncome: 'Renseignez le revenu net imposable pour calculer la TMI année par année.',
@@ -142,6 +147,7 @@ export default {
     lifeGainPerDecade: 'Hausse de l\'espérance de vie',
     technicalRate: 'Taux technique',
     arrearsFee: 'Frais sur arrérages',
+    spouseCeiling: 'Plafond du conjoint disponible chaque année (mutualisation)',
   },
   actions: {
     maxDeductible: {

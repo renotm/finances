@@ -1,4 +1,5 @@
 import { config } from '../../config/defaults'
+import { fiscal } from '../../config/fiscal'
 import { simulateLivret } from '../core/livret'
 import { tmiAt, tmiParam } from '../core/tmi'
 import { amount, num, pct, str } from '../core/params'
@@ -40,7 +41,7 @@ export const livretBancaire: Product = {
     const boostMonths = Math.max(0, Math.round(num(p, 'boostMonths')))
     const boostCap = amount(p, 'boostCap')
     const bareme = str(p, 'taxMode') === 'bareme'
-    const incomeTax = (year: number) => (bareme ? tmiAt(p, 'tmi', year) : config.pfuIncomeTax / 100)
+    const incomeTax = (year: number) => (bareme ? tmiAt(p, 'tmi', year) : fiscal.pfuIncomeTax / 100)
     const social = pct(p, 'socialRate')
 
     const interest = (balance: number, i: number) => {

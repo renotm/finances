@@ -1,11 +1,13 @@
 /**
- * Valeurs par défaut du simulateur.
+ * Valeurs par défaut des placements (taux de marché, frais, hypothèses de l'utilisateur).
  *
- * C'est le seul fichier à modifier quand les taux ou les barèmes changent
- * (Livret A : révisions au 1er février et au 1er août).
+ * Les paramètres fiscaux et réglementaires (barème, décote, prélèvements sociaux, plafonds, tables de rente)
+ * sont centralisés et datés dans `fiscal.ts`.
  * Les pourcentages sont exprimés en % (1.7 = 1,7 %), les montants en euros.
- * Sources et date de vérification : voir SPEC.md, §4 et §9.
+ * Sources et date de vérification : voir SPEC.md (§4, §9) et FISCAL_RULES.md.
  */
+import { fiscal } from './fiscal'
+
 export const config = {
   /** Date de dernière vérification des valeurs, affichée en pied de page. */
   updatedAt: '2026-11-20',
@@ -17,11 +19,8 @@ export const config = {
     periodicAmount: 100,
   },
 
-  /** Taux marginaux d'imposition proposés dans les listes. */
-  tmiOptions: [0, 11, 30, 41, 45],
-
-  /** Part impôt sur le revenu de la flat tax (PFU). */
-  pfuIncomeTax: 12.8,
+  /** Taux marginaux d'imposition proposés dans les listes (tranches du barème). */
+  tmiOptions: fiscal.incomeTax.brackets.map((b) => b.rate),
 
   livretA: { rate: 1.7, cap: 22950 },
   ldds: { rate: 1.7, cap: 12000 },
@@ -33,7 +32,7 @@ export const config = {
     boostCap: 0,
     cap: 0,
     tmi: 30,
-    socialRate: 18.6,
+    socialRate: fiscal.social.capital,
   },
 
   assuranceVie: {
@@ -42,12 +41,7 @@ export const config = {
     euroRate: 3.2,
     euroFee: 0.6,
     ucFee: 0.6,
-    socialRate: 17.2,
-    allowanceSingle: 4600,
-    allowanceCouple: 9200,
-    reducedRate: 7.5,
-    premiumsThreshold: 150000,
-    yearsForReducedRate: 8,
+    socialRate: fiscal.social.lifeInsurance,
   },
 
   per: {
@@ -61,52 +55,16 @@ export const config = {
     euroFee: 0.6,
     ucFee: 0.6,
     capitalShare: 50,
-    socialRate: 18.6,
+    socialRate: fiscal.social.capital,
     /** Rente viagère (SPEC §4.4.1). */
     annuity: {
-      /** Espérance de vie actuelle (âge) d'une personne arrivée à la retraite : moyenne H/F INSEE 2025. */
+      /** Âge de fin de simulation par défaut (hypothèse de durée de vie) : moyenne H/F INSEE 2025 à 60 ans. */
       lifeExpectancy: 86,
       /** Hausse de l'espérance de vie, en années par décennie (tendance INSEE 2000-2025). */
       lifeGainPerDecade: 1,
-      technicalRate: 0.5,
       arrearsFee: 2,
       conversionRate: 3.5,
     },
-    /** Plafond de déduction salarié : 10 % des revenus, borné (valeurs 2026, PASS 2025). */
-    ceilingRate: 10,
-    ceilingFloor: 4710,
-    ceilingMax: 37680,
-    /** Report des plafonds non utilisés : 3 ans pour ceux d'avant 2026, 5 ans à partir de 2026 (LF 2026). */
-    carryRuleChangeYear: 2026,
-    carryYearsBefore: 3,
-    carryYearsAfter: 5,
-    /** Abattement de 10 % des pensions, appliqué à la rente issue de versements déduits. */
-    pensionAllowance: 10,
-    /** Fraction imposable des rentes viagères à titre onéreux selon l'âge au premier versement. */
-    annuityTaxableFractions: [
-      { maxAge: 49, fraction: 70 },
-      { maxAge: 59, fraction: 50 },
-      { maxAge: 69, fraction: 40 },
-      { maxAge: Infinity, fraction: 30 },
-    ],
-  },
-
-  /** Impôt sur le revenu : barème 2026 (revenus 2025), par part (SPEC §4.7). */
-  incomeTax: {
-    brackets: [
-      { upTo: 11600, rate: 0 },
-      { upTo: 29579, rate: 11 },
-      { upTo: 84577, rate: 30 },
-      { upTo: 181917, rate: 41 },
-      { upTo: Infinity, rate: 45 },
-    ],
-    /** Plafonnement du quotient familial, par demi-part supplémentaire. */
-    qfCapPerHalfPart: 1807,
-    /** Plafond de la part du parent isolé avec son premier enfant (case T). */
-    qfCapSingleParent: 4262,
-    /** Âges limites (au 1er janvier) pour un enfant à charge : mineur, rattaché, rattaché étudiant. */
-    childAgeLimit: 18,
-    attachedAgeLimit: { '21': 21, '25': 25 },
   },
 
   /** Profils : âge de fin de simulation de la rente selon le sexe (INSEE 2025, arrondi ; SPEC §5.5). */
@@ -119,8 +77,8 @@ export const config = {
     dynamic: { rate: 7, spread: 6 },
   },
 
-  /** Réservé pour la v2 (euros constants). */
-  inflation: { rate: 2 },
+  /** Hypothèses de comparaison (SPEC §3.6) : inflation pour les euros constants et l'actualisation. */
+  comparison: { inflationRate: 2 },
 } as const
 
 export type RiskProfile = keyof typeof config.riskProfiles
