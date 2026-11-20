@@ -5,6 +5,8 @@ import { amount, str } from './params'
 /** Montants à verser / retirer pour chaque mois de la simulation (index 0 = premier mois). */
 export interface Schedule {
   deposits: number[]
+  /** Part des versements du mois qui vient du versement périodique (incluse dans `deposits`). */
+  regular: number[]
   withdrawals: number[]
   earlyReleases: number[]
   /** Déblocages anticipés du PER pour accident de la vie (fiscalité différente). */
@@ -19,14 +21,17 @@ export interface Schedule {
  */
 export function buildSchedule(p: SimParams, months: number): Schedule {
   const zeros = () => new Array<number>(months).fill(0)
-  const s: Schedule = { deposits: zeros(), withdrawals: zeros(), earlyReleases: zeros(), accidentReleases: zeros(), outOfRange: 0 }
+  const s: Schedule = { deposits: zeros(), regular: zeros(), withdrawals: zeros(), earlyReleases: zeros(), accidentReleases: zeros(), outOfRange: 0 }
   const start = parseYM(str(p, 'start'))
   const periodic = amount(p, 'periodicAmount')
   const yearly = str(p, 'frequency') === 'yearly'
 
   if (periodic > 0) {
     for (let i = 0; i < months; i++) {
-      if (!yearly || i % 12 === 0) s.deposits[i] += periodic
+      if (!yearly || i % 12 === 0) {
+        s.deposits[i] += periodic
+        s.regular[i] += periodic
+      }
     }
   }
 

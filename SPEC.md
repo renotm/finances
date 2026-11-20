@@ -285,6 +285,48 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 
 **Hors périmètre** : plafonds des indépendants (TNS). La mutualisation dans le couple est traitée en 4.4.
 
+#### 4.4.5 PER déjà ouvert (livré sur la branche `per-existant`)
+
+**Le besoin** : simuler un PER qui a déjà un solde. Aujourd'hui, ce solde ne peut être saisi que comme « versement initial », traité comme un versement de l'année : il consomme le plafond de déduction, dépasse la limite et donne une économie d'impôt qui a déjà été obtenue les années passées.
+
+**Paramètres** (paramètres principaux, sous « Versement initial »)
+| Paramètre | Défaut |
+|---|---|
+| Case **« PER déjà ouvert »** | non |
+| Valeur actuelle du PER | 0 € (visible si la case est cochée) |
+| Dont versements déduits | 0 € (visible si la case est cochée) |
+| Dont versements non déduits | 0 € (visible si la case est cochée) |
+
+Ces montants figurent en général sur le relevé annuel du contrat ; l'aide du champ le précise.
+
+**Règles**
+- La valeur actuelle est placée dans le contrat au mois de début, **sans frais sur versement**, avec la répartition fonds euros / unités de compte de la colonne (hypothèse : la répartition actuelle du contrat est celle saisie).
+- Elle **ne consomme pas le plafond** de l'année et **ne donne aucune économie d'impôt** (déjà obtenue les années passées).
+- Sa composition détermine l'impôt à la sortie, comme pour les nouveaux versements : part issue de versements déduits imposée au barème (système du quotient), part non déduite exonérée, **gains = valeur − versements déduits − versements non déduits** soumis au PFU. Elle suit les mêmes règles en cas de rente (fractions imposables selon l'origine) et de déblocage anticipé (au prorata).
+- La composition est indépendante de la case « Versements déduits du revenu imposable », qui ne concerne que les nouveaux versements.
+- **Composition non saisie** (les deux montants à 0) : toute la valeur est considérée comme issue de versements déduits, sans gain (hypothèse prudente : l'impôt de sortie le plus élevé), avec un avertissement.
+- **PER en perte** (versements déduits + non déduits supérieurs à la valeur) : gains nuls, les deux parts réduites au prorata pour égaler la valeur (hypothèse), avec un avertissement.
+- Le « versement initial » reste un **nouveau versement** de la première année, déductible dans la limite du plafond ; les deux peuvent être saisis ensemble.
+- Comparaisons : la valeur actuelle compte comme un capital engagé au départ (flux du mois 0), comme le capital d'un contrat d'assurance vie existant ; elle apparaît dans « Total versé » et dans l'effort d'épargne.
+
+#### 4.4.6 Ne pas dépasser le plafond déductible (livré sur la branche `per-existant`)
+
+**Le besoin** : après un versement initial au niveau du plafond (report compris), les versements mensuels de la même année dépassent le plafond ; l'épargnant voudrait qu'ils ne commencent que lorsqu'ils redeviennent déductibles.
+
+**Paramètre** : case **« Ne pas dépasser le plafond déductible »**, visible si les versements sont déduits, non cochée par défaut (comportement actuel inchangé).
+
+**Règles, case cochée**
+- Chaque mois, le **versement régulier** est limité à la part du plafond encore disponible pour l'année : plafond de l'année + plafonds reportés encore valides + plafond du conjoint (si la mutualisation s'applique), moins les versements déjà effectués dans l'année (versement initial, versements ponctuels, versements réguliers précédents, économies réinvesties).
+- Le plafond épuisé, les versements réguliers sont **suspendus**, puis **reprennent en janvier** avec le plafond de la nouvelle année. Le mois où le plafond est atteint, le versement est réduit au montant restant.
+- Seuls les versements **réguliers** sont limités : le versement initial et les versements ponctuels restent tels que saisis (un dépassement de leur fait garde son avertissement habituel).
+- À partir de l'âge où les versements ne sont plus déductibles (70 ans), le plafond disponible est nul : les versements réguliers s'arrêtent.
+- La valeur d'un PER déjà ouvert (4.4.5) n'entre pas dans ce calcul.
+- Le tableau détaillé et la synthèse montrent les versements réellement effectués ; une ligne d'aide sous la case l'explique, et la synthèse indique le montant des versements réguliers non effectués.
+
+**Réalisation** : paramètres `perExisting`, `perExistingValue`, `perExistingDeducted`, `perExistingFree` et `capToCeiling` du PER (`src/engine/products/per.ts`) ; l'échéancier distingue la part des versements réguliers (`regular`). Case non cochée : chemin de calcul inchangé. Avertissements `perExistingCompositionUnknown` et `perExistingLoss` ; ligne de synthèse « Versements réguliers non effectués ». Tests : `tests/per-existing.test.ts`.
+
+**Tests** (PER déjà ouvert et plafond) : valeur existante hors plafond et sans économie d'impôt ; impôt de sortie selon la composition (déduite, non déduite, gains) en capital, en rente et en déblocage anticipé ; composition non saisie et PER en perte (hypothèses et avertissements) ; versement initial et valeur existante ensemble ; case « Ne pas dépasser » : versement initial au plafond puis mensualités suspendues jusqu'en janvier, mois de réduction partielle, reports et plafond du conjoint pris en compte, arrêt à 70 ans, versements ponctuels non limités ; case non cochée : résultats identiques à aujourd'hui (non-régression).
+
 ### 4.5 Profils de risque des unités de compte (hypothèses, modifiables)
 
 Ces valeurs ne sont pas des données de marché officielles : ce sont des hypothèses de travail, à ajuster dans la config.
@@ -607,6 +649,7 @@ tests/           tests Vitest du moteur
 - `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
 - `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
 - `tests/final-fix.test.ts` : corrections finales (déblocage PER l'année du versement, rachat d'assurance vie en perte, abattement sur les pensions par pensionné, résolution de la détection des TRI multiples, paramètres fiscaux vérifiés sur les sources officielles).
+- `tests/per-existing.test.ts` : PER déjà ouvert (composition, hypothèses, rente, déblocage) et versements réguliers limités au plafond déductible.
 - `tests/simulations.test.ts` : sauvegarde des simulations par utilisateur (aller-retour, isolation, changement de personne, cycle de vie, données invalides, stockage indisponible).
 - `tests/qualitative.test.ts` : comparaison qualitative (catégories, textes FR et EN, sources, règles distinguées, adaptation aux paramètres de la colonne, blocs repliés).
 - `tests/methodology.test.ts` : exemples chiffrés de la page « Méthodologie et sources », rendu de la page, sources.

@@ -207,7 +207,14 @@ export const per: Product = {
     { key: 'currentAge', type: 'number', unit: 'age', min: 18, max: 80, step: 1, group: 'main' },
     { key: 'retirementAge', type: 'number', unit: 'age', min: 50, max: 80, step: 1, group: 'main' },
     ...savings,
+    // PER déjà ouvert (SPEC §4.4.5) : solde existant et sa composition, hors plafond de l'année.
+    { key: 'perExisting', type: 'boolean', group: 'main' },
+    { key: 'perExistingValue', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'main', visible: (p) => bool(p, 'perExisting') },
+    { key: 'perExistingDeducted', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'main', visible: (p) => bool(p, 'perExisting') },
+    { key: 'perExistingFree', type: 'number', unit: 'eur', min: 0, step: 1000, group: 'main', visible: (p) => bool(p, 'perExisting') },
     { key: 'deducted', type: 'boolean', group: 'main' },
+    // Versements réguliers limités au plafond déductible de l'année (SPEC §4.4.6).
+    { key: 'capToCeiling', type: 'boolean', group: 'main', visible: (p) => bool(p, 'deducted') },
     tmiParam('tmiNow', 'main'),
     { key: 'tmiRetirement', type: 'select', unit: 'pct', options: config.tmiOptions, group: 'main' },
     { key: 'exitMode', type: 'select', options: ['capital', 'annuity', 'mixed'], group: 'main' },
@@ -253,7 +260,12 @@ export const per: Product = {
     ...savingsDefaults(),
     currentAge: d.currentAge,
     retirementAge: d.retirementAge,
+    perExisting: false,
+    perExistingValue: 0,
+    perExistingDeducted: 0,
+    perExistingFree: 0,
     deducted: true,
+    capToCeiling: false,
     tmiNow: d.tmiNow,
     tmiRetirement: d.tmiRetirement,
     exitMode: 'capital',
@@ -392,18 +404,73 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     else yearEligible += v
   }
 
+  // PER déjà ouvert (SPEC §4.4.5) : la valeur actuelle entre dans le contrat sans frais, ne consomme pas le plafond
+  // et ne donne aucune économie d'impôt ; sa composition (déduits, non déduits, gains) détermine l'impôt de sortie.
+  const existingValue = bool(p, 'perExisting') ? amount(p, 'perExistingValue') : 0
+  if (existingValue > 0) {
+    contract.deposit(existingValue, 0)
+    rec.deposit(0, start.year, existingValue)
+    let ded = amount(p, 'perExistingDeducted')
+    let free = amount(p, 'perExistingFree')
+    if (ded + free <= 0) {
+      // Composition inconnue : tout est supposé issu de versements déduits, sans gain (hypothèse prudente).
+      ded = existingValue
+      rec.warn('perExistingCompositionUnknown')
+    } else if (ded + free > existingValue) {
+      // PER en perte : gains nuls, parts réduites au prorata pour égaler la valeur (hypothèse).
+      const k = existingValue / (ded + free)
+      ded *= k
+      free *= k
+      rec.warn('perExistingLoss')
+    }
+    deductedPremiums += ded
+    freePremiums += free
+  }
+
   // Le versement initial compte comme un versement de la première année.
   deposit(0, start.year, amount(p, 'initialCapital'))
   rec.startPoint(contract.value, contract.value)
 
+  /** Versements réguliers limités au plafond déductible disponible de l'année (SPEC §4.4.6). */
+  const capRegular = deducted && bool(p, 'capToCeiling')
+  /** Versements de l'année civile en cours (tous types), pour le plafond disponible. */
+  let yearDeposited = amount(p, 'initialCapital')
+  let regularSkipped = 0
+  const availableCeiling = (i: number, year: number) => {
+    const age = ageAtMonth(currentAge, i)
+    if (age >= f.deductionAgeLimit && year >= f.deductionAgeLimitFromYear) return 0
+    const carriesLeft = carries.reduce((acc, c) => acc + c.amount, 0)
+    const spouse = age < f.deductionAgeLimit + 1 ? spouseCeiling : 0
+    return Math.max(0, ceiling + carriesLeft + spouse - yearDeposited)
+  }
+
   // ---------- Phase d'épargne, jusqu'à la retraite ----------
   for (const m of iterateMonths(start, months)) {
-    deposit(m.i, m.year, sched.deposits[m.i])
-    if (pendingReinvest > 0) {
-      deposit(m.i, m.year, pendingReinvest)
-      rec.reinvest(pendingReinvest)
-      reinvested += pendingReinvest
-      pendingReinvest = 0
+    if (!capRegular) {
+      deposit(m.i, m.year, sched.deposits[m.i])
+      if (pendingReinvest > 0) {
+        deposit(m.i, m.year, pendingReinvest)
+        rec.reinvest(pendingReinvest)
+        reinvested += pendingReinvest
+        pendingReinvest = 0
+      }
+    } else {
+      // Versements ponctuels et économies réinvesties d'abord (non limités), puis versement régulier plafonné.
+      const regular = sched.regular[m.i]
+      const oneOff = sched.deposits[m.i] - regular
+      deposit(m.i, m.year, oneOff)
+      yearDeposited += oneOff
+      if (pendingReinvest > 0) {
+        deposit(m.i, m.year, pendingReinvest)
+        rec.reinvest(pendingReinvest)
+        reinvested += pendingReinvest
+        yearDeposited += pendingReinvest
+        pendingReinvest = 0
+      }
+      const allowed = Math.min(regular, availableCeiling(m.i, m.year))
+      deposit(m.i, m.year, allowed)
+      yearDeposited += allowed
+      regularSkipped += regular - allowed
     }
 
     for (const kind of ['home', 'accident'] as const) {
@@ -481,6 +548,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     }
     yearEligible = 0
     pendingReleased = 0
+    yearDeposited = 0
 
     // Valeur nette si l'on sortait tout en capital à cette date (hypothèse de lecture, pas une sortie réelle).
     const v = contract.value
@@ -495,6 +563,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   const extraLines = [
     ...(carryUsed > 0.5 ? [{ key: 'carryUsed', amount: carryUsed }] : []),
     ...(spouseUsed > 0.5 ? [{ key: 'spouseUsed', amount: spouseUsed }] : []),
+    ...(regularSkipped > 0.5 ? [{ key: 'regularSkipped', amount: regularSkipped }] : []),
   ]
 
   // ---------- Sortie à la retraite ----------
