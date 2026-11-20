@@ -11,6 +11,7 @@ import ProductPanel from './ui/components/ProductPanel.vue'
 import ProfilePage from './ui/components/ProfilePage.vue'
 import SummaryCards from './ui/components/SummaryCards.vue'
 import { applyProfile, createSlot, MAX_SLOTS, resetSlot, switchProduct, type Slot } from './ui/slots'
+import { comparisonDiffs } from './ui/comparison'
 
 const { t, locale } = useI18n()
 
@@ -33,16 +34,10 @@ function onInflation(e: Event) {
 
 /** Différences d'effort d'épargne et d'horizon entre les colonnes comparées (SPEC §3.6). */
 const comparisonNotes = computed(() => {
-  if (items.value.length < 2) return []
+  const d = comparisonDiffs(items.value.map(({ run }) => run))
   const notes: string[] = []
-  const efforts = items.value.map(({ run }) => run.result.summary.totalDeposited - run.result.summary.reinvestedSavings)
-  if (Math.max(...efforts) - Math.min(...efforts) > 1) {
-    notes.push(t('comparison.effort', { list: efforts.map((e, i) => `${i + 1} : ${formatEur(e)}`).join(', ') }))
-  }
-  const horizons = items.value.map(({ run }) => run.result.summary.horizonMonths)
-  if (new Set(horizons).size > 1) {
-    notes.push(t('comparison.horizon', { list: horizons.map((h, i) => `${i + 1} : ${Math.round(h / 1.2) / 10}`).join(', ') }))
-  }
+  if (d.effortDiffers) notes.push(t('comparison.effort', { list: d.efforts.map((e, i) => `${i + 1} : ${formatEur(e)}`).join(', ') }))
+  if (d.horizonDiffers) notes.push(t('comparison.horizon', { list: d.horizons.map((h, i) => `${i + 1} : ${Math.round(h / 1.2) / 10}`).join(', ') }))
   return notes
 })
 const formatEur = (v: number) =>

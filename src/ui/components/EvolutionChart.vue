@@ -13,8 +13,8 @@ import {
 } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Point } from '../../engine/types'
 import type { SlotResult } from '../../engine/run'
+import { chartSeries, type XY } from '../chartData'
 import { slotColor } from '../colors'
 import { useFormat } from '../format'
 import type { Slot } from '../slots'
@@ -25,44 +25,38 @@ const props = defineProps<{ items: { slot: Slot; run: SlotResult }[]; view: 'gro
 const { t } = useI18n()
 const f = useFormat()
 
-interface XY {
-  x: number
-  y: number
-  point: Point
-}
-
-const toXY = (pts: Point[]): XY[] => pts.map((p) => ({ x: p.t, y: props.view === 'net' ? p.net : p.gross, point: p }))
-
+/** Jeux de données Chart.js construits à partir des séries du moteur (chartData.ts), sans recalcul. */
 const data = computed<ChartData<'line', XY[]>>(() => ({
-  datasets: props.items.flatMap(({ slot, run }, idx) => {
-    const color = slotColor(idx)
-    const label = `${idx + 1}. ${t(`products.${slot.productId}`)}`
-    const sets: ChartData<'line', XY[]>['datasets'] = []
-    if (run.band) {
-      sets.push(
-        { label: `${label} (${t('chart.range')} −)`, data: toXY(run.band.low), borderColor: 'transparent', pointRadius: 0, fill: false, isBand: true } as never,
-        {
-          label: `${label} (${t('chart.range')} +)`,
-          data: toXY(run.band.high),
-          borderColor: 'transparent',
-          backgroundColor: color + '26',
-          pointRadius: 0,
-          fill: '-1',
-          isBand: true,
-        } as never,
-      )
+  datasets: chartSeries(
+    props.items.map(({ run }) => run),
+    props.view,
+  ).map((s) => {
+    const color = slotColor(s.slot)
+    const label = `${s.slot + 1}. ${t(`products.${props.items[s.slot].slot.productId}`)}`
+    if (s.kind === 'low') {
+      return { label: `${label} (${t('chart.range')} −)`, data: s.data, borderColor: 'transparent', pointRadius: 0, fill: false, isBand: true } as never
     }
-    sets.push({
+    if (s.kind === 'high') {
+      return {
+        label: `${label} (${t('chart.range')} +)`,
+        data: s.data,
+        borderColor: 'transparent',
+        backgroundColor: color + '26',
+        pointRadius: 0,
+        fill: '-1',
+        isBand: true,
+      } as never
+    }
+    return {
       label,
-      data: toXY(run.result.points),
+      data: s.data,
       borderColor: color,
       backgroundColor: color,
       borderWidth: 2.5,
-      pointRadius: run.result.points.length > 25 ? 0 : 3,
+      pointRadius: s.data.length > 25 ? 0 : 3,
       pointHoverRadius: 5,
       tension: 0.15,
-    })
-    return sets
+    }
   }),
 }))
 

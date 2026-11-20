@@ -14,7 +14,7 @@
 | 3 | Corrections de l'assurance vie | terminée |
 | 4 | Corrections des livrets | terminée |
 | 5 | Cohérence des comparaisons | terminée |
-| 6 | Validation automatisée | en cours |
+| 6 | Validation automatisée | terminée |
 
 ## Phase 0 : plan d'implémentation
 
@@ -124,6 +124,28 @@
 | Stabilité des règles fiscales | mention en pied de page | — (interface) |
 
 117 tests passent, build OK.
+
+## Phase 6 : validation automatisée (terminée)
+
+- `tests/edge.test.ts` (18 tests) : bornes du barème (11 600 €, 29 579 / 29 580 €), régime après 8 ans au mois anniversaire, fractions de rente aux bornes d'âge, déductibilité PER au mois des 70 ans, retraits totaux (livret, assurance vie), rendements nuls et négatifs (TRI −5 %), frais supérieurs au rendement, Livret A sur 60 ans (calcul indépendant), PER de 30 à 95 ans, montants négatifs, durée excessive, date illisible, répartition hors bornes.
+- `tests/ui.test.ts` (7 tests) : rendu serveur des cartes de synthèse et du tableau détaillé, montants comparés aux résultats du moteur ; séries du graphique identiques aux points du moteur (brut et net) ; notes de comparaison.
+- Pour ces tests, la préparation des séries du graphique (`src/ui/chartData.ts`) et le calcul des écarts de comparaison (`src/ui/comparison.ts`) ont été sortis des composants dans des modules purs, sans changement de comportement.
+- Vérification en conditions réelles : un profil enregistré au format v1 s'ouvre dans la page des profils avec toutes ses données, au format v2.
+- Contre-audit : les contrôles indépendants de l'audit initial, relancés sur le moteur corrigé, sont conformes pour le PER (PER-1 à PER-5), l'assiette de l'assurance vie (AV-6), la TMI et le TRI. Les écarts restants sont expliqués : 1 à 3 centimes dus à l'arrondi bancaire (LA-5, LB-1, LB-2) ; attendus de l'audit invalidés par la vérification des règles (AV-1 frais du fonds euros, AV-4 ordre de l'abattement) ; listes d'avertissements enrichies (EDGE-3, EDGE-6).
+
+**140 tests passent, typage et build OK.**
+
+## Bilan
+
+**Corrections** : les 9 anomalies « incorrect » de l'audit sont traitées. 7 sont corrigées : C13, C14, C25, C32, C33, C34 et C39. C40 est rendue sans objet par le passage à la table de mortalité. C18 n'est pas retenue après vérification (l'application était juste). Parmi les points « à vérifier », C15, C23, C26, C41 et C48 sont traités (règle implémentée et documentée) ; C31 (libellés de l'avis) et C49 (cas particuliers du quotient familial) restent ouverts. Tous les points supplémentaires du plan sont réalisés, sauf les limites ci-dessous.
+
+**Tests** : 140 (79 au départ de la fiabilisation). Les attendus sont calculés indépendamment. Les attendus d'anciens tests modifiés l'ont été parce que la règle qu'ils figeaient était erronée ; chaque cas est justifié dans les phases ci-dessus.
+
+**Limites restantes**
+- Règles à confirmer au BOFiP ou dans la brochure IR : assiette de l'IR des rachats d'assurance vie après prélèvements sociaux, ordre de l'abattement entre 7,5 % et 12,8 %, primes antérieures à 2017 dans le seuil de 150 000 €, plafond du parent isolé (4 262 € ou 4 224 €), CSG déductible à 6,8 % après la hausse de 2026, libellés de l'avis d'impôt pour les plafonds PER (C31).
+- Hypothèses de modélisation : revenus constants, barème 2026 supposé stable, régularisations d'impôt comptées l'année des revenus, âge du conjoint inconnu pour la mutualisation, interaction capital / rente la même année non cumulée, pensions inconnues (abattement sans plancher), primes des autres contrats supposées postérieures à 2017.
+- Table de rente disponible seulement à taux technique 0 % et pour les âges 55 à 80 ans ; projection des tables futures par décalage d'âge (hypothèse).
+- Hors périmètre : garde alternée, demi-parts spéciales, indépendants (TNS), versements d'assurance vie après 70 ans, succession, évolution des revenus.
 
 ## Journal
 

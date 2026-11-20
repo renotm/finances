@@ -1,6 +1,6 @@
 # Simulateur de placements — Spécification v1
 
-> Statut : v1 livrée. Évolution PER (rente viagère, bouton Max, §4.4.1 à 4.4.3) livrée. Report des plafonds PER (§4.4.4) : codé, branche `per-report-plafonds`. Profils et calcul de la TMI (§4.7, §5.5) : codés, branche `profils`.
+> Statut : v1 livrée. Évolutions PER, report des plafonds, profils et TMI livrés. **Fiabilisation fonctionnelle et financière** (AUDIT_PLAN.md) : réalisée sur la branche `fiabilisation`, voir AUDIT_REMEDIATION.md et FISCAL_RULES.md.
 > Dernière mise à jour : 20/11/2026
 
 ---
@@ -455,8 +455,13 @@ tests/           tests Vitest du moteur
 
 ## 7. Tests
 
-- Cas calculés à la main pour chaque placement (ex. : Livret A, 100 €/mois pendant 1 an ; versement en milieu de mois ; dépassement de plafond ; rachat d'assurance vie avant et après 8 ans ; sortie PER en capital et en rente).
-- Tests du blocage des plafonds et des retraits PER interdits.
+- Les résultats attendus sont calculés **indépendamment du code de production**, à partir des règles documentées dans `FISCAL_RULES.md` ; un attendu n'est jamais modifié pour faire passer un test (les corrections d'attendus sont justifiées dans `AUDIT_REMEDIATION.md`).
+- `tests/tax.test.ts` : moteur fiscal (barème, décote, quotient familial, système du quotient, abattement sur les pensions, migration des profils).
+- `tests/livrets.test.ts`, `tests/contracts.test.ts`, `tests/profiles.test.ts` : chaque placement et le profil.
+- `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
+- `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
+- `tests/ui.test.ts` : les montants des cartes, du tableau et des séries du graphique sont exactement ceux du moteur (rendu serveur des composants).
+- Sous Windows, lancer Vitest depuis `D:\Perso\finances` (lettre de lecteur en majuscule).
 
 ## 8. Hors périmètre v1 (prévu plus tard)
 
