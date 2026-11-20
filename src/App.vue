@@ -10,6 +10,8 @@ import EvolutionChart from './ui/components/EvolutionChart.vue'
 import ProductPanel from './ui/components/ProductPanel.vue'
 import ProfilePage from './ui/components/ProfilePage.vue'
 import SummaryCards from './ui/components/SummaryCards.vue'
+import { flushSave } from './simulations/store'
+import { bindSavedSimulation, initialSimulation } from './ui/savedSimulation'
 import { applyProfile, createSlot, MAX_SLOTS, resetSlot, switchProduct, type Slot } from './ui/slots'
 import { comparisonDiffs } from './ui/comparison'
 
@@ -35,8 +37,11 @@ const onMethodologyPage = computed(() => hash.value === '#/methodologie' || hash
 const methodologySection = computed(() => (hash.value.startsWith('#/methodologie/') ? hash.value.slice('#/methodologie/'.length) : ''))
 const onSimulator = computed(() => !onProfilePage.value && !onMethodologyPage.value)
 
+/** Simulation sauvegardée par utilisateur (SPEC §5.8) : colonnes et inflation de la personne active, ou de l'anonyme. */
+const initial = initialSimulation(profiles.activeId)
+
 /** Inflation supposée (%), pour le rendement réel et la valeur actuelle (SPEC §3.6). */
-const inflation = ref<number>(config.comparison.inflationRate)
+const inflation = ref<number>(initial.inflation)
 function onInflation(e: Event) {
   const v = Number((e.target as HTMLInputElement).value)
   if (Number.isFinite(v)) inflation.value = Math.min(20, Math.max(-5, v))
@@ -58,7 +63,17 @@ function onActiveChange(e: Event) {
   setActive(raw === '' ? null : Number(raw))
 }
 
-const slots = reactive<Slot[]>([createSlot('livretA'), createSlot('assuranceVie')])
+const slots = reactive<Slot[]>(initial.slots)
+
+// Sauvegarde automatique et changement de personne active ; la dernière modification est écrite avant de quitter.
+bindSavedSimulation({
+  slots,
+  inflation,
+  activeId: () => profiles.activeId,
+  personExists: (id) => profiles.persons.some((p) => p.id === id),
+})
+window.addEventListener('pagehide', flushSave)
+onBeforeUnmount(() => window.removeEventListener('pagehide', flushSave))
 const view = ref<'gross' | 'net'>('net')
 
 const items = computed(() => slots.map((slot) => ({ slot, run: runSimulation(slot.productId, slot.params) })))

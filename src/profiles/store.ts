@@ -1,4 +1,5 @@
 import { computed, reactive, watch } from 'vue'
+import { clearSimulations, removeSimulation } from '../simulations/store'
 import { newPerson, upgradePerson, type Person } from './person'
 
 /** Clé et version du format enregistré dans le navigateur (SPEC §5.5). */
@@ -111,6 +112,8 @@ export function duplicatePerson(id: number, suffix: string): Person | null {
 export function removePerson(id: number) {
   const i = profiles.persons.findIndex((p) => p.id === id)
   if (i < 0) return
+  // Sa simulation sauvegardée disparaît avec elle (SPEC §5.8).
+  removeSimulation(id)
   profiles.persons.splice(i, 1)
   if (profiles.activeId === id) profiles.activeId = profiles.persons[0]?.id ?? null
 }
@@ -120,6 +123,7 @@ export function setActive(id: number | null) {
 }
 
 export function clearAll() {
+  clearSimulations()
   profiles.persons.splice(0)
   profiles.activeId = null
   try {

@@ -3,6 +3,7 @@ import { SHARED_KEYS } from '../engine/products/common'
 import type { SimParams } from '../engine/types'
 import { profilePatch } from '../profiles/apply'
 import { activePerson } from '../profiles/store'
+import { MAX_COLUMNS, type SavedSimulation } from '../simulations/store'
 
 /** Une colonne de comparaison : un type de placement et ses paramètres. */
 export interface Slot {
@@ -11,8 +12,24 @@ export interface Slot {
   params: SimParams
 }
 
-export const MAX_SLOTS = 3
+export const MAX_SLOTS = MAX_COLUMNS
 let nextId = 1
+
+/** Colonnes affichées par défaut (Livret A, assurance vie), avec les valeurs de la personne active. */
+export function defaultSlots(): Slot[] {
+  return [createSlot('livretA'), createSlot('assuranceVie')]
+}
+
+/** Colonnes d'une simulation sauvegardée (SPEC §5.8), ou colonnes par défaut s'il n'y en a pas. */
+export function slotsFrom(saved: SavedSimulation | null): Slot[] {
+  if (!saved) return defaultSlots()
+  return saved.columns.map((c) => ({ id: nextId++, productId: c.productId, params: c.params }))
+}
+
+/** Instantané sérialisable des colonnes et de l'inflation, pour la sauvegarde. */
+export function snapshotOf(slots: Slot[], inflation: number): SavedSimulation {
+  return { columns: slots.map((s) => ({ productId: s.productId, params: JSON.parse(JSON.stringify(s.params)) })), inflation }
+}
 
 /** Valeurs par défaut d'un placement, complétées par la personne active s'il y en a une (SPEC §5.5). */
 function defaultsFor(productId: string): SimParams {

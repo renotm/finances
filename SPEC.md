@@ -438,7 +438,7 @@ Valeurs par défaut d'une nouvelle personne : celles de la config (40 ans, dépa
 
 **Stockage**
 - Une clé `simulateur.profils` contient `{ version, activeId, persons: [...] }`, versionnée pour pouvoir faire évoluer le format.
-- Hors périmètre : mémoriser les simulations (colonnes ouvertes), encours existants des placements, synchronisation entre appareils, mutualisation des plafonds PER du couple, évolution des revenus dans le temps.
+- Hors périmètre : encours existants des placements, synchronisation entre appareils, mutualisation des plafonds PER du couple, évolution des revenus dans le temps.
 
 ### 5.6 Page « Méthodologie et sources » (validée, livrée sur la branche `methodologie`)
 
@@ -541,6 +541,46 @@ Compléter la comparaison chiffrée par les caractéristiques qui ne se voient p
 
 **Tests** : chaque placement définit les 7 catégories ; chaque élément a un texte FR et EN et une nature ; chaque source citée existe ; les variantes selon les paramètres (unités de compte, sortie en rente, PFU / barème, couple) ; rendu des blocs repliés ; tests existants et build inchangés.
 
+### 5.8 Sauvegarde des simulations par utilisateur (validée, livrée sur la branche `sauvegarde-simulations`)
+
+Les colonnes de comparaison sont sauvegardées pour chaque personne du profil, et pour l'utilisateur anonyme (aucune personne active), dans le navigateur, comme les profils. Branche : `sauvegarde-simulations`, créée depuis `main`.
+
+**Ce qui est sauvegardé** : une seule simulation par utilisateur, celle qui est affichée :
+- les colonnes, dans leur ordre : type de placement et tous ses paramètres (mouvements ponctuels, contexte fiscal de la colonne compris) ;
+- l'inflation supposée.
+- Non sauvegardé : l'affichage brut / net et la langue (préférences d'affichage communes), le bloc qualitatif ouvert ou fermé.
+
+**Quand**
+- **Sauvegarde automatique** à chaque modification (ajout, retrait ou changement de colonne, saisie d'un paramètre, inflation), regroupée après une courte pause de saisie (environ 0,3 s). Aucun bouton « Enregistrer ».
+- **Au chargement de la page** : les colonnes de la personne active (mémorisée par les profils) ou de l'anonyme sont restaurées.
+
+**Changement de personne active** (liste de l'en-tête)
+- Les colonnes affichées restent sauvegardées pour la personne précédente.
+- Les colonnes de la personne choisie (ou de l'anonyme, avec « Aucun profil ») **remplacent** l'affichage.
+- Personne sans simulation sauvegardée : les deux colonnes par défaut (Livret A, assurance vie), avec les valeurs de son profil, comme une nouvelle colonne aujourd'hui.
+- Cette règle remplace, pour le changement de personne seulement, la règle de la §5.5 « les colonnes déjà ouvertes ne changent pas » : modifier le profil d'une personne ne change toujours pas ses colonnes (bouton « Appliquer le profil » inchangé).
+
+**Cycle de vie**
+- Suppression d'une personne : sa simulation est supprimée avec elle.
+- Duplication d'une personne : la copie commence sans simulation (colonnes par défaut à sa première sélection).
+- « Effacer toutes les données » : efface aussi toutes les simulations, anonyme comprise ; la mention de la page des profils le précise.
+- Stockage indisponible (navigation privée…) : le simulateur fonctionne comme aujourd'hui, sans sauvegarde ; le message existant de la page des profils s'applique.
+
+**Stockage**
+- Clé `simulateur.simulations` : `{ version, users: { "<id de la personne>" | "anonymous": { columns: [{ productId, params }], inflation } } }`, versionnée comme les profils.
+- Restauration tolérante : données illisibles ou version inconnue → ignorées (colonnes par défaut), sans erreur ; placement inconnu → colonne retirée ; paramètres complétés par les valeurs par défaut du placement (pour les paramètres ajoutés dans une version ultérieure) ; au plus 3 colonnes ; aucune colonne restante → colonnes par défaut.
+- Les données restent sur l'appareil et dans le navigateur ; rien n'est envoyé.
+
+**Hors périmètre** : plusieurs simulations nommées par utilisateur, export / import, synchronisation entre appareils. Aucun calcul ni paramètre de simulation modifié.
+
+**Réalisation**
+- `src/simulations/store.ts` : stockage, validation (`sanitizeSimulation`), sauvegarde regroupée (`scheduleSave`, `flushSave`, `cancelSave`), suppression et effacement ; sans dépendance aux profils ni à Vue.
+- `src/ui/savedSimulation.ts` : colonnes initiales de l'utilisateur actif et liaison (sauvegarde automatique, changement de personne), branchée dans `App.vue` ; la sauvegarde en attente est écrite à la fermeture de la page (`pagehide`).
+- `src/profiles/store.ts` : la suppression d'une personne et « Effacer toutes les données » suppriment aussi les simulations ; textes de la page des profils mis à jour.
+- Vérifié dans un navigateur : édition, rechargement, création d'une personne, retour à l'anonyme.
+
+**Tests** : aller-retour sauvegarde / restauration (paramètres et mouvements identiques, résultats de simulation identiques) ; isolation entre personnes et anonyme ; changement de personne (sauvegarde de l'une, chargement de l'autre, colonnes par défaut avec profil pour une nouvelle) ; suppression, duplication et effacement ; données corrompues, version inconnue, placement inconnu, paramètre manquant ; plus de 3 colonnes ; stockage indisponible.
+
 ## 6. Architecture
 
 ```
@@ -567,6 +607,7 @@ tests/           tests Vitest du moteur
 - `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
 - `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
 - `tests/final-fix.test.ts` : corrections finales (déblocage PER l'année du versement, rachat d'assurance vie en perte, abattement sur les pensions par pensionné, résolution de la détection des TRI multiples, paramètres fiscaux vérifiés sur les sources officielles).
+- `tests/simulations.test.ts` : sauvegarde des simulations par utilisateur (aller-retour, isolation, changement de personne, cycle de vie, données invalides, stockage indisponible).
 - `tests/qualitative.test.ts` : comparaison qualitative (catégories, textes FR et EN, sources, règles distinguées, adaptation aux paramètres de la colonne, blocs repliés).
 - `tests/methodology.test.ts` : exemples chiffrés de la page « Méthodologie et sources », rendu de la page, sources.
 - `tests/ui.test.ts` : les montants des cartes, du tableau et des séries du graphique sont exactement ceux du moteur (rendu serveur des composants).
