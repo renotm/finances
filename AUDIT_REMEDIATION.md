@@ -15,6 +15,7 @@
 | 4 | Corrections des livrets | terminée |
 | 5 | Cohérence des comparaisons | terminée |
 | 6 | Validation automatisée | terminée |
+| 7 | Correction finale (AUDIT_FINAL_FIX.md) | terminée |
 
 ## Phase 0 : plan d'implémentation
 
@@ -89,7 +90,7 @@
 - `rachat avant 8 ans` attendait un impôt sur les produits avant prélèvements sociaux annuels (260 €). Il attend désormais l'assiette légale nette (215,28 €).
 - `après 8 ans, au-delà de 150 000 €` appliquait l'abattement au prorata des deux taux (2 578,10 €). Il l'applique désormais dans l'ordre réglementaire, d'abord sur la part à 7,5 % (2 700 €).
 
-**Limites restantes** : trois règles « à confirmer » au BOFiP (assiette nette, ordre de l'abattement, primes anciennes dans le seuil), voir FISCAL_RULES.md §4.
+**Limites restantes** : trois règles « à confirmer » au BOFiP (assiette nette, ordre de l'abattement, primes anciennes dans le seuil), voir FISCAL_RULES.md §4. Les deux dernières ont été confirmées en phase 7.
 
 100 tests passent, build OK.
 
@@ -135,14 +136,31 @@
 
 **140 tests passent, typage et build OK.**
 
+## Phase 7 : correction finale (AUDIT_FINAL_FIX.md, terminée)
+
+| Point | Constat | Correction | Test(s) (`tests/final-fix.test.ts`) |
+|---|---|---|---|
+| 1. Déblocage PER l'année du versement | les versements de l'année, reclassés en « déduits » seulement au 31 décembre, sortaient exonérés d'impôt sur le revenu tout en étant déduits | la part des versements de l'année qui sera déduite est traitée comme déduite dès le retrait ; la reclassification de fin d'année ne porte que sur le reste (`per.ts`) | impôt du retrait 706,50 € (2 355 € × 30 %), net perçu, déduction maintenue à 4 710 €, impôt total avec la sortie à la retraite ; accident de la vie exonéré ; sans plafond, rien d'imposé ; avec le contexte fiscal (barème, quotient) |
+| 2. Rachat partiel en moins-value | primes réduites de primes × rachat ÷ valeur même en perte | primes réduites du seul montant racheté quand le contrat est en perte (BOFiP BOI-RPPM-RCM-20-10-20-50 §100, RES 2010/46) (`assuranceVie.ts`) | rachat sans impôt ; valeur nette finale 6 331,20 € (primes restantes 6 000 €) ; contrat en plus-value inchangé |
+| 3. Deux conjoints pensionnés | plancher de 454 € compté une seule fois pour tout le foyer | abattement par pensionné, plafonné par foyer (`householdPensionAllowance`, `taxablePensionIncrement`) ; champ « Dont pensions du conjoint » dans le profil (couple) | 2 000 + 40 000 € → 4 439 € ; 1 000 + 20 000 € → 2 454 € ; rente de 2 000 € sur une pension de 1 000 € : 2 000 € imposables (et non 1 800 €) ; rente PER nette avec pensions du conjoint |
+| 4. TRI multiples | détection limitée par un pas uniforme de 0,25 point par mois | grille fine (0,01 point par mois) entre −2 % et +5 % par mois ; limites documentées (`irr.ts`, FISCAL_RULES.md §6) | 1,01 % et 1,09 % détectés ; 1,002 % et 1,008 % non détectés (limite) ; 21,01 % et 21,11 % non détectés hors plage fine, 20 % et 25 % détectés |
+| 5. Valeur actualisée | présentée comme comparable entre horizons différents | textes de l'aide et de la note de comparaison corrigés (FR, EN) ; SPEC §3.6 | contenu de la note |
+| Sources officielles | 5 règles « à confirmer » | confirmées : ordre de l'abattement (Légifrance LEGIARTI000044989424), primes anciennes dans le seuil de 150 000 € (BOI-RPPM-RCM-20-15-20210621), CSG déductible 6,8 % (Service-Public F2329), parent isolé 4 262 € (brochure IR 2026), plafonds PER sur l'avis (impots.gouv.fr, C31) | paramètres de `fiscal.ts` comparés aux sources |
+
+**Tests existants** : aucun attendu modifié. Les tests nouveaux calculent leurs attendus à la main, à partir des règles de FISCAL_RULES.md.
+
+**Limites restantes** : assiette de l'impôt sur le revenu des rachats d'assurance vie après prélèvements sociaux annuels (à confirmer) ; pensions du conjoint non renseignées : toutes les pensions sont attribuées au titulaire ; limites de résolution du TRI (FISCAL_RULES.md §6).
+
+156 tests passent, typage et build OK.
+
 ## Bilan
 
-**Corrections** : les 9 anomalies « incorrect » de l'audit sont traitées. 7 sont corrigées : C13, C14, C25, C32, C33, C34 et C39. C40 est rendue sans objet par le passage à la table de mortalité. C18 n'est pas retenue après vérification (l'application était juste). Parmi les points « à vérifier », C15, C23, C26, C41 et C48 sont traités (règle implémentée et documentée) ; C31 (libellés de l'avis) et C49 (cas particuliers du quotient familial) restent ouverts. Tous les points supplémentaires du plan sont réalisés, sauf les limites ci-dessous.
+**Corrections** : les 9 anomalies « incorrect » de l'audit sont traitées. 7 sont corrigées : C13, C14, C25, C32, C33, C34 et C39. C40 est rendue sans objet par le passage à la table de mortalité. C18 n'est pas retenue après vérification (l'application était juste). Parmi les points « à vérifier », C15, C23, C26, C41 et C48 sont traités (règle implémentée et documentée) ; C31 (libellés de l'avis) est confirmé en phase 7 ; C49 (cas particuliers du quotient familial) reste ouvert. Tous les points supplémentaires du plan sont réalisés, sauf les limites ci-dessous.
 
-**Tests** : 140 (79 au départ de la fiabilisation). Les attendus sont calculés indépendamment. Les attendus d'anciens tests modifiés l'ont été parce que la règle qu'ils figeaient était erronée ; chaque cas est justifié dans les phases ci-dessus.
+**Tests** : 156 (79 au départ de la fiabilisation, 140 à la fin de la phase 6). Les attendus sont calculés indépendamment. Les attendus d'anciens tests modifiés l'ont été parce que la règle qu'ils figeaient était erronée ; chaque cas est justifié dans les phases ci-dessus.
 
 **Limites restantes**
-- Règles à confirmer au BOFiP ou dans la brochure IR : assiette de l'IR des rachats d'assurance vie après prélèvements sociaux, ordre de l'abattement entre 7,5 % et 12,8 %, primes antérieures à 2017 dans le seuil de 150 000 €, plafond du parent isolé (4 262 € ou 4 224 €), CSG déductible à 6,8 % après la hausse de 2026, libellés de l'avis d'impôt pour les plafonds PER (C31).
+- Règle à confirmer : assiette de l'IR des rachats d'assurance vie après prélèvements sociaux annuels. Les autres règles en attente ont été confirmées sur les sources officielles en phase 7.
 - Hypothèses de modélisation : revenus constants, barème 2026 supposé stable, régularisations d'impôt comptées l'année des revenus, âge du conjoint inconnu pour la mutualisation, interaction capital / rente la même année non cumulée, pensions inconnues (abattement sans plancher), primes des autres contrats supposées postérieures à 2017.
 - Table de rente disponible seulement à taux technique 0 % et pour les âges 55 à 80 ans ; projection des tables futures par décalage d'âge (hypothèse).
 - Hors périmètre : garde alternée, demi-parts spéciales, indépendants (TNS), versements d'assurance vie après 70 ans, succession, évolution des revenus.

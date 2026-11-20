@@ -165,12 +165,29 @@ export function pensionAllowance(grossPensions: number, pensioners = 1): number 
   return Math.min(withFloor, pa.maxPerHousehold)
 }
 
-/** Part imposable d'une pension supplémentaire, compte tenu des pensions déjà perçues (abattement plafonné). */
-export function taxablePensionIncrement(additionalPension: number, existingPensions: number): number {
-  const before = existingPensions - pensionAllowance(existingPensions)
-  const after = existingPensions + additionalPension - pensionAllowance(existingPensions + additionalPension)
+/**
+ * Abattement de 10 % d'un foyer qui compte plusieurs pensionnés (CGI art. 158-5 a) : calculé pour chacun
+ * (10 % de sa pension, au moins le plancher sans dépasser sa pension), puis limité au plafond du foyer.
+ */
+export function householdPensionAllowance(pensionsByPerson: number[]): number {
+  const pa = fiscal.pensionAllowance
+  const sum = pensionsByPerson
+    .filter((p) => p > 0)
+    .reduce((acc, p) => acc + Math.min(p, Math.max((p * pa.rate) / 100, pa.minPerPensioner)), 0)
+  return Math.min(sum, pa.maxPerHousehold)
+}
+
+/**
+ * Part imposable d'une pension supplémentaire perçue par une personne du foyer, compte tenu de ses propres
+ * pensions et de celles des autres pensionnés du foyer (plancher par pensionné, plafond par foyer).
+ */
+export function taxablePensionIncrement(additionalPension: number, ownPensions: number, otherPensions: number[] = []): number {
+  const before = ownPensions + sumOf(otherPensions) - householdPensionAllowance([ownPensions, ...otherPensions])
+  const after = ownPensions + additionalPension + sumOf(otherPensions) - householdPensionAllowance([ownPensions + additionalPension, ...otherPensions])
   return Math.max(0, after - before)
 }
+
+const sumOf = (xs: number[]) => xs.reduce((acc, x) => acc + Math.max(0, x), 0)
 
 // ---------- TMI (tranche) et calendrier ----------
 

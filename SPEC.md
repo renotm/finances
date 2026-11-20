@@ -58,7 +58,8 @@ Une page web qui simule l'évolution d'un placement financier dans le temps et p
 - **Inflation supposée** (2 % par défaut), saisie au-dessus de la synthèse.
 - **Rendement annuel (TRI)** : la valeur actuelle des flux est examinée sur une grille de taux ; un seul changement de signe donne un TRI unique ; plusieurs changements signalent des TRI multiples, affichés « non pertinent » ; aucun : « non calculable ».
 - **Rendement réel** = (1 + rendement nominal) ÷ (1 + inflation) − 1.
-- **Gain net en euros d'aujourd'hui** : somme des flux de l'épargnant (versements négatifs ; retraits, rentes, économies d'impôt, valeur finale positifs), actualisés à l'inflation. C'est l'indicateur comparable entre placements d'horizons différents.
+- **Gain net en euros d'aujourd'hui** : somme des flux de l'épargnant (versements négatifs ; retraits, rentes, économies d'impôt, valeur finale positifs), actualisés à l'inflation. Il corrige l'effet de l'inflation mais **ne suffit pas** à comparer des placements d'horizons différents : il ignore ce que deviendrait l'argent après la fin du placement le plus court, la disponibilité des fonds et le risque. Quand les durées diffèrent, une note le signale et recommande de simuler les placements sur une même durée.
+- **Limites numériques du TRI** : grille de −50 % à +50 % par mois, pas fin de 0,01 point par mois entre −2 % et +5 % par mois, 0,25 point ailleurs. Deux TRI plus proches que le pas local, ou une racine double, ne sont pas détectés : le TRI est alors « non calculable », jamais faux (FISCAL_RULES.md §6).
 - **Effort d'épargne** = versements − économies d'impôt réinvesties. Une note signale des efforts différents entre colonnes.
 - **Horizon** : une note signale des durées différentes (le PER en rente dure jusqu'à l'âge de fin).
 - **Économies d'impôt** : affichées à part ; la synthèse distingue le **capital disponible** (hors économies conservées). Option PER « Réinvestir les économies d'impôt » : l'économie est versée le mois suivant ; elle n'est alors plus ajoutée à la valeur nette (pas de double comptage).
@@ -142,6 +143,7 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 
 **Fiscalité des rachats** (partiels en cours de route, total en fin de simulation pour le net), CGI art. 125-0 A
 - **Produits** d'un rachat = montant racheté − primes × (montant racheté ÷ valeur du contrat). Cette assiette de l'impôt sur le revenu est nette des prélèvements sociaux déjà prélevés sur le fonds euros.
+- **Contrat en perte** (valeur inférieure aux primes restantes) : le produit d'un rachat partiel est nul et les primes restantes ne baissent que du **montant racheté** (BOFiP BOI-RPPM-RCM-20-10-20-50 §100) ; exemple : valeur 8 000 €, primes 10 000 €, rachat de 4 000 € → primes restantes 6 000 €.
 - Les produits se répartissent entre primes versées **avant** et **depuis** le 27/09/2017 au prorata des primes.
 - **Avant 8 ans** : primes récentes 12,8 % ; primes anciennes 35 % (moins de 4 ans) ou 15 % (4 à 8 ans).
 - **Après 8 ans** :
@@ -188,6 +190,7 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 - **Économie d'impôt à l'entrée** (si versements déduits) : avec un contexte fiscal, **impôt(revenu) − impôt(revenu − déduction)** l'année du versement (barème, quotient familial, décote, composition du foyer de l'année) ; sans contexte, déduction × TMI, signalée comme approximative. Le versement initial compte comme un versement de la première année.
 - **Versements à partir de 70 ans** : non déductibles depuis 2026 (LF 2026 art. 9), avec un avertissement.
 - **Déblocage anticipé** : la déduction des versements de l'année n'est pas réduite. « Résidence principale » : imposé comme une sortie en capital (barème avec système du quotient sur les versements déduits, PFU sur les gains), avec les revenus actuels. « Accident de la vie » : capital exonéré d'impôt sur le revenu, gains soumis aux seuls prélèvements sociaux.
+  - **Déblocage l'année du versement** : la part des versements de l'année qui sera déduite au 31 décembre est traitée comme issue de versements déduits et imposée au barème lors d'un déblocage « résidence principale » ; seuls les versements au-delà de la déduction disponible sortent comme non déduits. Exemple : 5 000 € versés en mars, plafond 4 710 €, déblocage de 2 500 € en juin → 2 355 € imposés (706,50 € à 30 %), déduction de l'année 4 710 €.
 - **Plafond de déduction** (salariés) : 10 % des revenus professionnels nets, avec un plancher de 4 710 € et un plafond de 37 680 € (valeurs 2026, calculées sur le PASS 2025 de 47 100 €). Sans revenus renseignés, on applique le plancher. Un **avertissement** s'affiche si les versements de l'année dépassent le plafond ; la part au-delà ne génère pas d'économie d'impôt. Le plafond figurant sur l'avis d'imposition est le chiffre qui fait foi : un champ permet de le saisir directement.
 - Report des plafonds non utilisés des années précédentes : voir 4.4.4.
 - **Mutualisation** : le plafond du conjoint (saisi, par an) s'impute après le plafond de l'année et les reports ; plus utilisée à partir de l'année suivant les 70 ans du titulaire (l'âge du conjoint n'est pas connu).
@@ -198,7 +201,7 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
   - versements non déduits : exonérés, seuls les gains sont imposés.
 - **Sortie en rente** : voir 4.4.1 (calcul) et 4.4.2 (phase de versement).
 - **Fiscalité de la rente** :
-  - versements déduits : rente imposée comme une pension, après abattement de 10 % **plafonné** compte tenu des pensions du foyer (sans pensions renseignées : 10 % sans plancher, limité au plafond) ; prélèvements sociaux sur la fraction imposable selon l'âge ;
+  - versements déduits : rente imposée comme une pension, après abattement de 10 % **plafonné** compte tenu des pensions du foyer : plancher de 454 € **par pensionné**, plafond de 4 439 € par foyer ; la rente s'ajoute aux pensions du titulaire, celles du conjoint gardent leur propre abattement (sans pensions renseignées : 10 % sans plancher, limité au plafond ; sans pensions du conjoint : toutes les pensions sont attribuées au titulaire) ; prélèvements sociaux sur la fraction imposable selon l'âge ;
   - versements non déduits : rente viagère à titre onéreux, seule une fraction est imposée ;
   - fraction imposable selon l'âge **révolu** à l'entrée en jouissance : 70 % avant 50 ans, 50 % de 50 à 59 ans, 40 % de 60 à 69 ans, 30 % à 70 ans et plus ;
   - impôt calculé au barème (impôt supplémentaire sur le revenu à la retraite) si le contexte fiscal est complet, sinon à la TMI à la retraite (approximation signalée).
@@ -412,6 +415,8 @@ Pour ne pas ressaisir sa situation à chaque visite, l'utilisateur enregistre un
 | Revenus professionnels nets de la personne | PER : plafond de déduction (10 %) |
 | Plafond épargne retraite de l'avis d'impôt : plafond de l'année, plafonds non utilisés N−1, N−2, N−3 | PER : plafond annuel et report (4.4.4) |
 | TMI à la retraite estimée | PER |
+| Revenu imposable du foyer et pensions brutes du foyer à la retraite | PER : impôt au barème sur le capital et la rente |
+| Dont pensions du conjoint (affiché si marié ou pacsé) | PER : abattement de 10 % sur les pensions calculé par pensionné (plancher de 454 € chacun) |
 
 Valeurs par défaut d'une nouvelle personne : celles de la config (40 ans, départ à 64 ans, TMI actuelle 30 %, à la retraite 11 %…), situation célibataire, sans enfant, revenus non renseignés.
 
@@ -460,6 +465,7 @@ tests/           tests Vitest du moteur
 - `tests/livrets.test.ts`, `tests/contracts.test.ts`, `tests/profiles.test.ts` : chaque placement et le profil.
 - `tests/comparison.test.ts` : TRI et sa pertinence, actualisation, réinvestissement, **conservation des flux**.
 - `tests/edge.test.ts` : bornes, changements d'année et d'âge, retraits totaux, rendements nuls ou négatifs, frais excessifs, simulations longues, saisies incohérentes.
+- `tests/final-fix.test.ts` : corrections finales (déblocage PER l'année du versement, rachat d'assurance vie en perte, abattement sur les pensions par pensionné, résolution de la détection des TRI multiples, paramètres fiscaux vérifiés sur les sources officielles).
 - `tests/ui.test.ts` : les montants des cartes, du tableau et des séries du graphique sont exactement ceux du moteur (rendu serveur des composants).
 - Sous Windows, lancer Vitest depuis `D:\Perso\finances` (lettre de lecteur en majuscule).
 

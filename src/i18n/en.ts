@@ -35,9 +35,9 @@ const en: typeof fr = {
   },
   comparison: {
     inflation: 'Assumed inflation',
-    inflationHint: 'Used for the real return and the gain in today\'s euros (discounted flows), which makes investments with different horizons comparable.',
+    inflationHint: 'Used for the real return and the gain in today\'s euros (flows discounted at inflation).',
     effort: 'The investments compared do not require the same savings effort ({list}): compare returns and gains in today\'s euros instead.',
-    horizon: 'The investments compared do not have the same duration, in years ({list}): final values are not directly comparable, the gain in today\'s euros is.',
+    horizon: 'The investments compared do not have the same duration, in years ({list}): their final values are not comparable. The gain in today\'s euros narrows the gap without removing it: it ignores what the money would earn after the shorter investment ends, liquidity and risk. To compare, simulate the investments over the same duration.',
   },
   tmi: {
     profileOption: 'From profile',
@@ -97,6 +97,7 @@ const en: typeof fr = {
     livesAloneHint: 'Required for the single-parent half share (box T). Not granted when cohabiting.',
     retirementIncome: 'Household net taxable income in retirement (excluding the PER)',
     retirementPensions: 'Household gross retirement pensions',
+    retirementPensionsSpouse: "Of which spouse's pensions",
     retirementHint: 'Used to compute the actual tax on PER payouts (tax scale, capped 10% allowance). If empty, the retirement marginal rate is used and the result is flagged as approximate.',
     tmiTitle: 'Marginal tax rate',
     tmiManual: 'Enter the marginal rate manually (fixed rate)',

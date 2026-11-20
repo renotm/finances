@@ -283,6 +283,16 @@ export const per: Product = {
   simulate: simulatePer,
 }
 
+/**
+ * Part imposable de la rente issue de versements déduits, ajoutée aux pensions du titulaire : abattement de 10 %
+ * calculé par pensionné (plancher) et plafonné pour le foyer, compte tenu des pensions du conjoint saisies.
+ */
+function pensionIncrement(rente: number, ctx: TaxContext): number {
+  const total = ctx.retirementPensions ?? 0
+  const spouse = Math.min(Math.max(0, ctx.retirementPensionsSpouse ?? 0), total)
+  return taxablePensionIncrement(rente, total - spouse, spouse > 0 ? [spouse] : [])
+}
+
 // ---------- Simulation ----------
 
 /** Âge (en années décimales) au début du mois i. */
@@ -321,6 +331,11 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   let freePremiums = 0
   /** Versements de l'année éligibles à la déduction (titulaire de moins de 70 ans), et les autres. */
   let yearEligible = 0
+  /**
+   * Part des versements de l'année qui sera déduite en décembre mais a déjà quitté le contrat par un déblocage :
+   * elle a été imposée comme un versement déduit lors du déblocage (SPEC §4.4, AUDIT_FINAL_FIX 1).
+   */
+  let pendingReleased = 0
   let ageLimitedDeposits = 0
   let savingsTotal = 0
   /** Économies d'impôt réinvesties dans le PER (versées le mois suivant) : elles ne s'ajoutent plus à la valeur nette. */
@@ -344,11 +359,26 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     return base * (phase === 'now' ? tmiNow(year) : tmiRetirement)
   }
 
-  /** Retrait d'une fraction `ratio` du contrat : répartition entre versements déduits, non déduits et gains. */
-  const split = (value: number, ratio: number) => {
-    const fromDeducted = deductedPremiums * ratio
-    const fromFree = freePremiums * ratio
+  /**
+   * Retrait d'une fraction `ratio` du contrat : répartition entre versements déduits, non déduits et gains.
+   * `pending` : versements de l'année encore comptés « non déduits » mais qui seront déduits en décembre ; ils sont
+   * traités comme déduits, pour ne pas échapper à l'impôt du retrait.
+   */
+  const split = (value: number, ratio: number, pending = 0) => {
+    const fromDeducted = (deductedPremiums + pending) * ratio
+    const fromFree = (freePremiums - pending) * ratio
     return { fromDeducted, fromFree, gains: Math.max(0, value - fromDeducted - fromFree) }
+  }
+
+  /**
+   * Versements de l'année déjà effectués qui seront déduits en décembre : dans la limite du plafond de l'année, des
+   * reports et du plafond du conjoint encore disponibles, moins la part déjà sortie par un déblocage.
+   */
+  const pendingDeductible = (i: number) => {
+    if (!deducted) return 0
+    const carriesLeft = carries.reduce((acc, c) => acc + c.amount, 0)
+    const spouse = ageAtMonth(currentAge, i) < f.deductionAgeLimit + 1 ? spouseCeiling : 0
+    return Math.max(0, Math.min(yearEligible, ceiling + carriesLeft + spouse) - pendingReleased)
   }
 
   const deposit = (i: number, year: number, v: number) => {
@@ -384,7 +414,8 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       const taken = Math.min(wanted, v)
       if (taken < wanted) rec.warn('withdrawalCapped')
       const ratio = v > 0 ? taken / v : 0
-      const s = split(taken, ratio)
+      const pending = Math.min(pendingDeductible(m.i), freePremiums)
+      const s = split(taken, ratio, pending)
       // Résidence principale : comme une sortie en capital. Accident de la vie : capital exonéré d'impôt sur le
       // revenu, gains soumis aux seuls prélèvements sociaux (FISCAL_RULES.md §3).
       const tax =
@@ -392,8 +423,10 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
           ? deductedCapitalTax(s.fromDeducted, m.year, 'now') + s.gains * (pfu + socialRate)
           : s.gains * socialRate
       contract.withdraw(taken)
-      deductedPremiums -= s.fromDeducted
-      freePremiums -= s.fromFree
+      // Les versements déduits, non déduits et ceux de l'année à déduire sortent dans la même proportion.
+      deductedPremiums *= 1 - ratio
+      freePremiums *= 1 - ratio
+      pendingReleased += pending * ratio
       rec.tax(m.year, tax)
       rec.withdraw(m.i, m.year, taken, taken - tax)
     }
@@ -436,7 +469,8 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
 
       const deductible = fromCurrent + fromCarry + fromSpouse
       if (deductible > 0) {
-        const reclass = Math.min(deductible, freePremiums)
+        // La part déjà débloquée (et déjà imposée comme déduite) n'est plus dans le contrat : elle n'est pas reclassée.
+        const reclass = Math.min(Math.max(0, deductible - pendingReleased), freePremiums)
         deductedPremiums += reclass
         freePremiums -= reclass
         const saving = ctx ? deductionSaving(ctx.income, deductible, composition(ctx, m.year)) : deductible * tmiNow(m.year)
@@ -446,6 +480,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
       }
     }
     yearEligible = 0
+    pendingReleased = 0
 
     // Valeur nette si l'on sortait tout en capital à cette date (hypothèse de lecture, pas une sortie réelle).
     const v = contract.value
@@ -494,7 +529,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     // pensions qui absorbent le plancher), limité au plafond du foyer (hypothèse, FISCAL_RULES.md §3).
     const pensionTaxable =
       ctx && ctx.retirementPensions !== null
-        ? taxablePensionIncrement(fromDeducted, ctx.retirementPensions)
+        ? pensionIncrement(fromDeducted, ctx)
         : fromDeducted - Math.min(fromDeducted * (fiscal.pensionAllowance.rate / 100), fiscal.pensionAllowance.maxPerHousehold)
     let incomeTax: number
     if (ctx && ctx.retirementIncome !== null) {

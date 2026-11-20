@@ -72,6 +72,7 @@ type NullableKey =
   | 'carryN3'
   | 'retirementIncome'
   | 'retirementPensions'
+  | 'retirementPensionsSpouse'
   | 'spouseCeiling'
 
 /** La demi-part de parent isolé ne concerne qu'un célibataire ou divorcé avec enfant(s). */
@@ -269,6 +270,13 @@ const parts = (n: number) => f.num(n)
           <label for="pf-ret-pensions">{{ t('profile.retirementPensions') }}</label>
           <div class="input-unit">
             <input id="pf-ret-pensions" type="number" min="0" step="1000" :value="edited.retirementPensions ?? ''" @change="setNullable('retirementPensions', $event)" />
+            <span class="unit">€</span>
+          </div>
+        </div>
+        <div v-if="edited.situation === 'married'" class="field">
+          <label for="pf-ret-pensions-spouse">{{ t('profile.retirementPensionsSpouse') }}</label>
+          <div class="input-unit">
+            <input id="pf-ret-pensions-spouse" type="number" min="0" step="1000" :value="edited.retirementPensionsSpouse ?? ''" @change="setNullable('retirementPensionsSpouse', $event)" />
             <span class="unit">€</span>
           </div>
         </div>

@@ -36,6 +36,8 @@ export interface Person {
   retirementIncome: number | null
   /** Pensions brutes du foyer à la retraite (plafond de l'abattement de 10 %). */
   retirementPensions: number | null
+  /** Dont pensions du conjoint (plancher de l'abattement de 10 % par pensionné). */
+  retirementPensionsSpouse: number | null
   /** Plafond PER du conjoint disponible chaque année pour la mutualisation (case 6QR). */
   spouseCeiling: number | null
 }
@@ -61,6 +63,7 @@ export function newPerson(id: number, name: string): Person {
     livesAlone: true,
     retirementIncome: null,
     retirementPensions: null,
+    retirementPensionsSpouse: null,
     spouseCeiling: null,
   }
 }
@@ -109,5 +112,6 @@ export function personTaxContext(person: Person): TaxContext | null {
     income: person.taxableIncome,
     retirementIncome: person.retirementIncome,
     retirementPensions: person.retirementPensions,
+    retirementPensionsSpouse: person.situation === 'married' ? person.retirementPensionsSpouse : null,
   }
 }

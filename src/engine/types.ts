@@ -36,6 +36,11 @@ export interface TaxContext {
   retirementIncome: number | null
   /** Pensions brutes du foyer à la retraite, pour le plafond de l'abattement de 10 % (null : non renseigné). */
   retirementPensions: number | null
+  /**
+   * Dont pensions du conjoint (incluses dans `retirementPensions`), pour appliquer le plancher par pensionné
+   * (absent ou null : toutes les pensions sont celles du titulaire).
+   */
+  retirementPensionsSpouse?: number | null
 }
 
 /** Paramètres d'un placement : valeurs simples indexées par clé, mouvements ponctuels, calendrier de TMI, contexte fiscal. */

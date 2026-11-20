@@ -95,7 +95,7 @@ export function rachatTax(x: RachatTaxInput) {
 
 /**
  * Part des produits des primes versées depuis le 27/09/2017 taxée à 7,5 % : (150 000 € − primes anciennes)
- * ÷ primes récentes, tous contrats de l'assuré, au 31 décembre de l'année précédente (à vérifier, FISCAL_RULES §4).
+ * ÷ primes récentes, tous contrats de l'assuré, au 31 décembre de l'année précédente (BOFiP BOI-RPPM-RCM-20-15, FISCAL_RULES §4).
  */
 export function reducedRateShare(premiumsTotal: number, premiumsPre: number): number {
   const post = premiumsTotal - premiumsPre
@@ -191,11 +191,17 @@ function simulateAssuranceVie(p: SimParams, scenario: Scenario): SimResult {
       const taken = Math.min(wanted, v)
       if (taken < wanted) rec.warn('withdrawalCapped')
       const ratio = v > 0 ? taken / v : 0
-      const gains = taken - contract.premiums * ratio
+      const premiumsBefore = contract.premiums
+      const gains = taken - premiumsBefore * ratio
       const t = taxOf(gains, ratio, monthsBetween(opening, ym), m.year)
       contract.withdraw(taken)
+      // Contrat en perte (valeur < primes non remboursées) : la part de primes remboursée est plafonnée au montant
+      // racheté (BOFiP BOI-RPPM-RCM-20-10-20-50 §100, RES 2010/46) ; le produit est nul et les primes restantes ne
+      // baissent que du montant racheté. Sinon : primes × montant racheté ÷ valeur.
+      const reimbursed = gains < 0 ? taken : premiumsBefore * ratio
+      contract.premiums = premiumsBefore - reimbursed
       socialCredit -= socialCredit * ratio
-      premiumsPre -= premiumsPre * ratio
+      premiumsPre -= premiumsBefore > 0 ? premiumsPre * (reimbursed / premiumsBefore) : 0
       if (m.year !== allowanceYear) {
         allowanceYear = m.year
         allowanceUsed = 0

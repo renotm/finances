@@ -33,9 +33,9 @@ export default {
   },
   comparison: {
     inflation: 'Inflation supposée',
-    inflationHint: 'Sert au rendement réel et au gain en euros d\'aujourd\'hui (flux actualisés), qui permet de comparer des placements d\'horizons différents.',
+    inflationHint: 'Sert au rendement réel et au gain en euros d\'aujourd\'hui (flux actualisés à l\'inflation).',
     effort: 'Les placements comparés ne demandent pas le même effort d\'épargne ({list}) : comparez plutôt les rendements et les gains en euros d\'aujourd\'hui.',
-    horizon: 'Les placements comparés n\'ont pas la même durée, en années ({list}) : les valeurs finales ne sont pas directement comparables, le gain en euros d\'aujourd\'hui l\'est.',
+    horizon: 'Les placements comparés n\'ont pas la même durée, en années ({list}) : leurs valeurs finales ne sont pas comparables. Le gain en euros d\'aujourd\'hui réduit l\'écart sans le supprimer : il ignore ce que deviendrait l\'argent après la fin du placement le plus court, la disponibilité des fonds et le risque. Pour comparer, simulez les placements sur une même durée.',
   },
   tmi: {
     profileOption: 'Selon le profil',
@@ -95,6 +95,7 @@ export default {
     livesAloneHint: 'Condition de la demi-part de parent isolé (case T). En concubinage, elle n\'est pas accordée.',
     retirementIncome: 'Revenu net imposable du foyer à la retraite (hors PER)',
     retirementPensions: 'Pensions de retraite brutes du foyer',
+    retirementPensionsSpouse: 'Dont pensions du conjoint',
     retirementHint: 'Servent à calculer l\'impôt réel sur la sortie du PER (barème, abattement de 10 % plafonné). Vides : la TMI à la retraite est utilisée, et le résultat est signalé comme approximatif.',
     tmiTitle: 'Taux marginal d\'imposition',
     tmiManual: 'Saisir la TMI à la main (taux fixe)',
