@@ -24,6 +24,30 @@ window.addEventListener('hashchange', onHashChange)
 onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange))
 const onProfilePage = computed(() => hash.value === '#/profil')
 
+/** Inflation supposée (%), pour le rendement réel et la valeur actuelle (SPEC §3.6). */
+const inflation = ref<number>(config.comparison.inflationRate)
+function onInflation(e: Event) {
+  const v = Number((e.target as HTMLInputElement).value)
+  if (Number.isFinite(v)) inflation.value = Math.min(20, Math.max(-5, v))
+}
+
+/** Différences d'effort d'épargne et d'horizon entre les colonnes comparées (SPEC §3.6). */
+const comparisonNotes = computed(() => {
+  if (items.value.length < 2) return []
+  const notes: string[] = []
+  const efforts = items.value.map(({ run }) => run.result.summary.totalDeposited - run.result.summary.reinvestedSavings)
+  if (Math.max(...efforts) - Math.min(...efforts) > 1) {
+    notes.push(t('comparison.effort', { list: efforts.map((e, i) => `${i + 1} : ${formatEur(e)}`).join(', ') }))
+  }
+  const horizons = items.value.map(({ run }) => run.result.summary.horizonMonths)
+  if (new Set(horizons).size > 1) {
+    notes.push(t('comparison.horizon', { list: horizons.map((h, i) => `${i + 1} : ${Math.round(h / 1.2) / 10}`).join(', ') }))
+  }
+  return notes
+})
+const formatEur = (v: number) =>
+  new Intl.NumberFormat(locale.value === 'fr' ? 'fr-FR' : 'en-GB', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
+
 function onActiveChange(e: Event) {
   const raw = (e.target as HTMLSelectElement).value
   setActive(raw === '' ? null : Number(raw))
@@ -111,7 +135,20 @@ const updatedAt = computed(() => {
         <h2>{{ t('summary.title') }}</h2>
         <p class="muted small">{{ t('app.viewHelp') }}</p>
       </div>
-      <SummaryCards :items="items" :view="view" />
+      <div class="comparison">
+        <div class="field comparison__inflation">
+          <label for="inflation">{{ t('comparison.inflation') }}</label>
+          <div class="input-unit">
+            <input id="inflation" type="number" step="0.1" min="-5" max="20" :value="inflation" @change="onInflation" />
+            <span class="unit">%</span>
+          </div>
+          <p class="hint">{{ t('comparison.inflationHint') }}</p>
+        </div>
+        <ul v-if="comparisonNotes.length" class="warnings comparison__notes">
+          <li v-for="n in comparisonNotes" :key="n">{{ n }}</li>
+        </ul>
+      </div>
+      <SummaryCards :items="items" :view="view" :inflation="inflation / 100" />
     </section>
 
     <section class="block">
@@ -131,6 +168,7 @@ const updatedAt = computed(() => {
 
   <footer class="container footer muted small">
     <p>{{ t('app.disclaimer') }}</p>
+    <p>{{ t('app.fiscalStability') }}</p>
     <p>{{ t('app.defaultsDate', { date: updatedAt }) }}</p>
   </footer>
 </template>

@@ -51,9 +51,19 @@ Une page web qui simule l'évolution d'un placement financier dans le temps et p
 - **Net** : ce que l'utilisateur toucherait s'il **retirait tout à la fin de la simulation**, après frais, impôts et prélèvements sociaux. Pour le PER, le net **inclut l'économie d'impôt** obtenue à l'entrée et, en sortie rente ou mixte, le total des rentes nettes perçues jusqu'à l'âge de fin de simulation (voir 4.4).
 - Un **interrupteur Brut / Net** bascule tout l'affichage (synthèse, graphique, tableau).
 
-### 3.5 Inflation (hors v1, prévue dans l'architecture)
-- Le moteur calcule en euros courants.
-- Une étape de transformation séparée pourra plus tard convertir les résultats en euros constants (taux d'inflation moyen paramétrable), sans toucher aux calculs des placements.
+### 3.5 Inflation
+- Le moteur calcule en euros courants. L'inflation sert aux indicateurs de comparaison (3.6), sans modifier les calculs des placements.
+
+### 3.6 Comparaison des placements
+- **Inflation supposée** (2 % par défaut), saisie au-dessus de la synthèse.
+- **Rendement annuel (TRI)** : la valeur actuelle des flux est examinée sur une grille de taux ; un seul changement de signe donne un TRI unique ; plusieurs changements signalent des TRI multiples, affichés « non pertinent » ; aucun : « non calculable ».
+- **Rendement réel** = (1 + rendement nominal) ÷ (1 + inflation) − 1.
+- **Gain net en euros d'aujourd'hui** : somme des flux de l'épargnant (versements négatifs ; retraits, rentes, économies d'impôt, valeur finale positifs), actualisés à l'inflation. C'est l'indicateur comparable entre placements d'horizons différents.
+- **Effort d'épargne** = versements − économies d'impôt réinvesties. Une note signale des efforts différents entre colonnes.
+- **Horizon** : une note signale des durées différentes (le PER en rente dure jusqu'à l'âge de fin).
+- **Économies d'impôt** : affichées à part ; la synthèse distingue le **capital disponible** (hors économies conservées). Option PER « Réinvestir les économies d'impôt » : l'économie est versée le mois suivant ; elle n'est alors plus ajoutée à la valeur nette (pas de double comptage).
+- **Fourchettes** des unités de compte : hypothèses de rendement, pas des probabilités (note sous le graphique).
+- **Stabilité des règles** : le barème et les règles fiscales de 2026 sont supposés stables, et les revenus constants (mention en pied de page).
 
 ## 4. Placements
 

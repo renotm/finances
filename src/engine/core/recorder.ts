@@ -1,6 +1,6 @@
 import type { Annuity, ExtraLine, Point, SimResult, Warning, YearRow } from '../types'
 import { addMonths, formatYM, toDecimalYear, type YM } from './dates'
-import { annualIrr, type Flow } from './irr'
+import { irrAnalysis, type Flow } from './irr'
 
 type SumField = 'deposits' | 'withdrawals' | 'gains' | 'fees' | 'taxes' | 'taxSavings' | 'annuityGross' | 'annuityNet'
 
@@ -157,6 +157,8 @@ export class Recorder {
     const sum = (f: SumField) => years.reduce((acc, r) => acc + r[f], 0)
     const grossFlows = [...this.grossFlows, { i: args.months, amount: args.grossFinalFlow ?? args.finalGross }]
     const netFlows = [...this.netFlows, { i: args.months, amount: args.netFinalFlow }]
+    const grossIrr = irrAnalysis(grossFlows)
+    const netIrr = irrAnalysis(netFlows)
 
     return {
       points: this.points,
@@ -164,6 +166,7 @@ export class Recorder {
       warnings: this.warnings,
       annuity: args.annuity,
       extraLines: args.extraLines,
+      flows: { gross: grossFlows, net: netFlows },
       summary: {
         totalDeposited: sum('deposits'),
         totalWithdrawn: sum('withdrawals'),
@@ -173,9 +176,20 @@ export class Recorder {
         fees: sum('fees'),
         taxes: sum('taxes') + args.exitTaxes,
         taxSavings: sum('taxSavings'),
-        annualReturnGross: annualIrr(grossFlows),
-        annualReturnNet: annualIrr(netFlows),
+        reinvestedSavings: this.reinvestedTotal,
+        annualReturnGross: grossIrr.rate,
+        annualReturnNet: netIrr.rate,
+        annualReturnGrossStatus: grossIrr.status,
+        annualReturnNetStatus: netIrr.status,
+        horizonMonths: args.months,
       },
     }
+  }
+
+  private reinvestedTotal = 0
+
+  /** Versement du mois i financé par une économie d'impôt réinvestie (ne compte pas dans l'effort d'épargne). */
+  reinvest(v: number) {
+    this.reinvestedTotal += Math.max(0, v)
   }
 }

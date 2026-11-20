@@ -151,9 +151,16 @@ export interface Summary {
   /** Impôts payés pendant la simulation + impôts dus à la sortie. */
   taxes: number
   taxSavings: number
-  /** Taux de rendement annuel (TRI), null si non calculable. */
+  /** Économies d'impôt réinvesties dans le placement (versements qui ne sont pas un effort d'épargne). */
+  reinvestedSavings: number
+  /** Taux de rendement annuel (TRI), null s'il est indéterminé ou multiple. */
   annualReturnGross: number | null
   annualReturnNet: number | null
+  /** Pertinence du TRI : unique, multiple (non pertinent) ou indéterminé. */
+  annualReturnGrossStatus: 'ok' | 'multiple' | 'none'
+  annualReturnNetStatus: 'ok' | 'multiple' | 'none'
+  /** Durée simulée, en mois (phase de rente comprise). */
+  horizonMonths: number
 }
 
 /** Ligne de synthèse propre à un placement (clé de traduction sous `summary.extra`). */
@@ -169,6 +176,8 @@ export interface SimResult {
   warnings: Warning[]
   annuity?: Annuity
   extraLines?: ExtraLine[]
+  /** Flux de trésorerie de l'épargnant (mois, montant), pour l'actualisation et les comparaisons. */
+  flows: { gross: { i: number; amount: number }[]; net: { i: number; amount: number }[] }
 }
 
 export interface Product {

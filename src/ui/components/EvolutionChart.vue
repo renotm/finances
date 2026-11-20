@@ -101,6 +101,8 @@ const options = computed<ChartOptions<'line'>>(() => ({
 
 /** Un PER verse une rente : on explique la chute de sa courbe à la retraite. */
 const showAnnuityNote = computed(() => props.items.some(({ run }) => run.result.annuity && !run.result.annuity.indicative))
+/** Une fourchette est affichée : rappeler qu'il s'agit d'hypothèses de rendement (SPEC §3.6). */
+const showBandNote = computed(() => props.items.some(({ run }) => !!run.band))
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 const chart = shallowRef<ChartJS<'line', XY[]>>()
@@ -127,6 +129,7 @@ onBeforeUnmount(() => chart.value?.destroy())
     <canvas ref="canvas" role="img" :aria-label="t('chart.title')"></canvas>
   </div>
   <p v-if="showAnnuityNote" class="hint chart-note">{{ t('chart.annuityNote') }}</p>
+  <p v-if="showBandNote" class="hint chart-note">{{ t('chart.bandNote') }}</p>
 </template>
 
 <style scoped>

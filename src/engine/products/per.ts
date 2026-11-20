@@ -235,6 +235,7 @@ export const per: Product = {
     carryParam('carryN4', 4),
     carryParam('carryN5', 5),
     { key: 'spouseCeiling', type: 'number', unit: 'eur', min: 0, step: 100, group: 'advanced', visible: (p) => bool(p, 'deducted') },
+    { key: 'reinvestSavings', type: 'boolean', group: 'advanced', visible: (p) => bool(p, 'deducted') },
     {
       key: 'lifeGainPerDecade',
       type: 'number',
@@ -274,6 +275,7 @@ export const per: Product = {
     carryN4: 0,
     carryN5: 0,
     spouseCeiling: 0,
+    reinvestSavings: false,
     socialRate: d.socialRate,
     taxContext: null,
   }),
@@ -321,6 +323,12 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   let yearEligible = 0
   let ageLimitedDeposits = 0
   let savingsTotal = 0
+  /** Économies d'impôt réinvesties dans le PER (versées le mois suivant) : elles ne s'ajoutent plus à la valeur nette. */
+  const reinvest = bool(p, 'reinvestSavings')
+  let pendingReinvest = 0
+  let reinvested = 0
+  /** Économies d'impôt conservées hors du PER (non réinvesties). */
+  const savingsKept = () => savingsTotal - reinvested
   const yearsAboveCeiling: number[] = []
 
   let carries = initialCarries(p)
@@ -361,6 +369,12 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
   // ---------- Phase d'épargne, jusqu'à la retraite ----------
   for (const m of iterateMonths(start, months)) {
     deposit(m.i, m.year, sched.deposits[m.i])
+    if (pendingReinvest > 0) {
+      deposit(m.i, m.year, pendingReinvest)
+      rec.reinvest(pendingReinvest)
+      reinvested += pendingReinvest
+      pendingReinvest = 0
+    }
 
     for (const kind of ['home', 'accident'] as const) {
       const wanted = kind === 'home' ? sched.earlyReleases[m.i] : sched.accidentReleases[m.i]
@@ -427,6 +441,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
         freePremiums -= reclass
         const saving = ctx ? deductionSaving(ctx.income, deductible, composition(ctx, m.year)) : deductible * tmiNow(m.year)
         savingsTotal += saving
+        if (reinvest) pendingReinvest += saving
         rec.saving(m.i, m.year, saving)
       }
     }
@@ -436,7 +451,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     const v = contract.value
     const s = split(v, 1)
     const hypotheticalTax = deductedCapitalTax(s.fromDeducted, m.year, 'retirement') + s.gains * (pfu + socialRate)
-    rec.close(m.i, m.year, v, v - hypotheticalTax + savingsTotal)
+    rec.close(m.i, m.year, v, v - hypotheticalTax + savingsKept())
   }
 
   if (yearsAboveCeiling.length > 0) rec.warn('perCeilingExceeded', { count: yearsAboveCeiling.length, first: yearsAboveCeiling[0] })
@@ -513,7 +528,7 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     return rec.finish({
       months,
       finalGross: v,
-      finalNet: v - capitalTaxes + savingsTotal,
+      finalNet: v - capitalTaxes + savingsKept(),
       exitTaxes: capitalTaxes,
       netFinalFlow: v - capitalTaxes,
       annuity: { ...annuityBase, indicative: true, endAge: null, totalNet: null },
@@ -552,13 +567,13 @@ function simulatePer(p: SimParams, scenario: Scenario): SimResult {
     cumGross += monthlyGross
     cumNet += monthlyGross - monthlyTax
     totalNet += monthlyGross - monthlyTax
-    if (ym.month === 12 || k === payoutMonths - 1) rec.close(i, ym.year, cumGross, cumNet + savingsTotal)
+    if (ym.month === 12 || k === payoutMonths - 1) rec.close(i, ym.year, cumGross, cumNet + savingsKept())
   }
 
   return rec.finish({
     months: months + payoutMonths,
     finalGross: cumGross,
-    finalNet: cumNet + savingsTotal,
+    finalNet: cumNet + savingsKept(),
     exitTaxes: 0,
     netFinalFlow: 0,
     grossFinalFlow: 0,

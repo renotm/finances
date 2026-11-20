@@ -12,6 +12,7 @@ const en: typeof fr = {
     addProduct: 'Add an investment',
     disclaimer: 'Indicative simulation based on constant average rates and current French tax rules. Not investment advice.',
     defaultsDate: 'Default values checked on {date}.',
+    fiscalStability: 'Tax rules and the 2026 income tax scale are assumed stable over the whole simulated period, and household income constant.',
   },
   products: {
     livretA: 'Livret A',
@@ -31,6 +32,12 @@ const en: typeof fr = {
     deleteMovement: 'Delete',
     applyProfile: 'Apply {name}\'s profile',
     applyProfileHint: 'Copies the values saved for {name} into this column',
+  },
+  comparison: {
+    inflation: 'Assumed inflation',
+    inflationHint: 'Used for the real return and the gain in today\'s euros (discounted flows), which makes investments with different horizons comparable.',
+    effort: 'The investments compared do not require the same savings effort ({list}): compare returns and gains in today\'s euros instead.',
+    horizon: 'The investments compared do not have the same duration, in years ({list}): final values are not directly comparable, the gain in today\'s euros is.',
   },
   tmi: {
     profileOption: 'From profile',
@@ -157,6 +164,7 @@ const en: typeof fr = {
     technicalRate: 'Technical rate',
     arrearsFee: 'Annuity payment fees',
     spouseCeiling: 'Spouse\'s ceiling available each year (pooling)',
+    reinvestSavings: 'Reinvest tax savings in the PER',
   },
   actions: {
     maxDeductible: {
@@ -176,6 +184,7 @@ const en: typeof fr = {
     cap: '0 = no ceiling. A higher initial capital is accepted (existing account).',
     boostMonths: '0 with a boosted rate = permanent boost.',
     boostCap: '0 = no limit.',
+    reinvestSavings: 'Each tax saving is paid into the PER the following month. It is then no longer counted separately in the net value, and is not part of your savings effort.',
     pfnlExemption: 'Available if the reference tax income is below €25,000 (€50,000 for a couple): the tax is then paid the following year instead of being withheld from the interest.',
     euroRate: 'Before management fees and social contributions.',
     openingDate: 'Used for the 8-year rule. The initial capital is then the current contract value.',
@@ -225,6 +234,11 @@ const en: typeof fr = {
     fees: 'Fees',
     taxes: 'Taxes and social contributions',
     taxSavings: 'Tax savings',
+    reinvested: 'Of which reinvested tax savings',
+    available: 'Available capital (excluding tax savings)',
+    realReturn: 'Real return (after inflation)',
+    presentValue: 'Net gain in today\'s euros',
+    irr: { ok: '', multiple: 'not meaningful (alternating flows)', none: 'not computable' },
     returnNet: 'Net annual return',
     returnGross: 'Gross annual return',
     annuity: 'Estimated life annuity',
@@ -232,8 +246,8 @@ const en: typeof fr = {
     annuityGross: 'Gross yearly annuity',
     annuityNet: 'Net yearly annuity',
     annuityMonthly: 'Net monthly annuity',
-    annuityCalc: 'TGF05 table (0% technical rate)',
-    annuityCalcValue: '€{price} per euro of annuity (age {age})',
+    annuityCalc: 'Calculation basis',
+    annuityCalcValue: 'TGF05 at 0%, €{price} per euro of annuity (age {age})',
     capitalAlternative: 'Same share as capital, after tax',
     annuityEstimateNote: 'Estimate based on the regulatory TGF05 table, not contractual: the actual amount depends on the contract and the table applied at payout.',
     annuityContractNote: 'Annuity computed with the conversion rate entered; check that your contract guarantees it.',
@@ -254,6 +268,7 @@ const en: typeof fr = {
     start: 'Start ({date})',
     end: 'End of {date}',
     range: 'range',
+    bandNote: 'The area around the curves shows lower and higher return assumptions, not a probability or a guarantee.',
     annuityNote: 'PER paid as an annuity: at retirement the converted capital is handed over to the insurer, hence the drop. The curve then rises with the annuities received.',
   },
   table: {

@@ -1,13 +1,32 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { presentValue, realReturn } from '../../engine/core/irr'
 import type { SlotResult } from '../../engine/run'
 import { slotColor } from '../colors'
 import { useFormat } from '../format'
 import type { Slot } from '../slots'
 
-defineProps<{ items: { slot: Slot; run: SlotResult }[]; view: 'gross' | 'net' }>()
+const props = defineProps<{ items: { slot: Slot; run: SlotResult }[]; view: 'gross' | 'net'; inflation: number }>()
 const { t } = useI18n()
 const f = useFormat()
+
+/** Indicateurs de comparaison (SPEC §3.6), selon la vue brute ou nette. */
+function metrics(run: SlotResult) {
+  const s = run.result.summary
+  const net = props.view === 'net'
+  const nominal = net ? s.annualReturnNet : s.annualReturnGross
+  const status = net ? s.annualReturnNetStatus : s.annualReturnGrossStatus
+  const keptSavings = s.taxSavings - s.reinvestedSavings
+  return {
+    nominal,
+    status,
+    real: nominal === null ? null : realReturn(nominal, props.inflation),
+    presentValue: presentValue(net ? run.result.flows.net : run.result.flows.gross, props.inflation),
+    effort: s.totalDeposited - s.reinvestedSavings,
+    keptSavings,
+    available: s.finalNet - keptSavings,
+  }
+}
 
 /** Paramètres d'un avertissement : les montants (plafond, montant perdu…) sont formatés en euros. */
 const EUR_PARAMS = ['cap', 'ceiling', 'amount']
@@ -45,6 +64,9 @@ function duration(run: SlotResult): string {
 
       <dl class="card__list">
         <div><dt>{{ t('summary.deposited') }}</dt><dd>{{ f.eur(run.result.summary.totalDeposited) }}</dd></div>
+        <div v-if="run.result.summary.reinvestedSavings > 0.5">
+          <dt>{{ t('summary.reinvested') }}</dt><dd>{{ f.eur(run.result.summary.reinvestedSavings) }}</dd>
+        </div>
         <div v-if="run.result.summary.totalWithdrawn > 0">
           <dt>{{ t('summary.withdrawn') }}</dt><dd>{{ f.eur(run.result.summary.totalWithdrawn) }}</dd>
         </div>
@@ -57,9 +79,18 @@ function duration(run: SlotResult): string {
         <div v-for="line in run.result.extraLines ?? []" :key="line.key">
           <dt>{{ t(`summary.extra.${line.key}`) }}</dt><dd>{{ f.eur(line.amount) }}</dd>
         </div>
+        <div v-if="view === 'net' && metrics(run).keptSavings > 0.5">
+          <dt>{{ t('summary.available') }}</dt><dd>{{ f.eur(metrics(run).available) }}</dd>
+        </div>
         <div>
           <dt>{{ view === 'net' ? t('summary.returnNet') : t('summary.returnGross') }}</dt>
-          <dd>{{ f.pct(view === 'net' ? run.result.summary.annualReturnNet : run.result.summary.annualReturnGross) }}</dd>
+          <dd>{{ metrics(run).status === 'ok' ? f.pct(metrics(run).nominal) : t(`summary.irr.${metrics(run).status}`) }}</dd>
+        </div>
+        <div v-if="metrics(run).real !== null">
+          <dt>{{ t('summary.realReturn') }}</dt><dd>{{ f.pct(metrics(run).real) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('summary.presentValue') }}</dt><dd>{{ f.eur(metrics(run).presentValue) }}</dd>
         </div>
       </dl>
 

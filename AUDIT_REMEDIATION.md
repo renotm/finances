@@ -13,8 +13,8 @@
 | 2 | Corrections du PER | terminée |
 | 3 | Corrections de l'assurance vie | terminée |
 | 4 | Corrections des livrets | terminée |
-| 5 | Cohérence des comparaisons | en cours |
-| 6 | Validation automatisée | à faire |
+| 5 | Cohérence des comparaisons | terminée |
+| 6 | Validation automatisée | en cours |
 
 ## Phase 0 : plan d'implémentation
 
@@ -107,6 +107,23 @@
 **Tests existants corrigés** : `flat tax 31,4 %` (la valeur brute est désormais le solde réel 10 102,90 €), `option barème` et `livret bancaire au barème` (CSG déductible), `départ en cours d'année` (intérêts de clôture arrondis au centime : 8,57 €).
 
 104 tests passent, build OK.
+
+## Phase 5 : cohérence des comparaisons (terminée)
+
+| Point du plan | Réalisation | Test(s) |
+|---|---|---|
+| Effort d'épargne identique | effort = versements − économies réinvesties ; note si les colonnes diffèrent | conservation des flux (PER avec réinvestissement) |
+| Horizon identique | durée simulée exposée (`horizonMonths`) ; note si les colonnes diffèrent | — (interface) |
+| Capital disponible / économies fiscales | ligne « Capital disponible (hors économies d'impôt) » | `économies d'impôt… conservées` |
+| Économies consommées / réinvesties | option PER « Réinvestir les économies d'impôt » | `réinvesties : 300 € versés en janvier…` |
+| Pas de double comptage | économies réinvesties retirées de la valeur nette ; égalité Σ flux nets = valeur nette − effort | `conservation des flux` (5 tests) |
+| Actualisation | gain net en euros d'aujourd'hui (flux actualisés à l'inflation) | `valeur actuelle…` |
+| Vérification du TRI, TRI multiple ou indéterminé | balayage de la valeur actuelle sur une grille de taux ; statut ok / multiple / indéterminé affiché | `TRI et sa pertinence` (3 tests) |
+| Rendement nominal / réel | ligne « Rendement réel (après inflation) » | `rendement réel` |
+| Scénarios = hypothèses | note sous le graphique quand une fourchette est affichée | — (interface) |
+| Stabilité des règles fiscales | mention en pied de page | — (interface) |
+
+117 tests passent, build OK.
 
 ## Journal
 

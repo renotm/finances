@@ -10,6 +10,7 @@ export default {
     addProduct: 'Ajouter un placement',
     disclaimer: 'Simulation indicative, basée sur des taux moyens constants et la fiscalité française en vigueur. Ne constitue pas un conseil en investissement.',
     defaultsDate: 'Valeurs par défaut vérifiées le {date}.',
+    fiscalStability: 'Les règles fiscales et le barème de l\'impôt de 2026 sont supposés stables pendant toute la durée simulée, et les revenus du foyer constants.',
   },
   products: {
     livretA: 'Livret A',
@@ -29,6 +30,12 @@ export default {
     deleteMovement: 'Supprimer',
     applyProfile: 'Appliquer le profil de {name}',
     applyProfileHint: 'Reprend dans cette colonne les valeurs enregistrées pour {name}',
+  },
+  comparison: {
+    inflation: 'Inflation supposée',
+    inflationHint: 'Sert au rendement réel et au gain en euros d\'aujourd\'hui (flux actualisés), qui permet de comparer des placements d\'horizons différents.',
+    effort: 'Les placements comparés ne demandent pas le même effort d\'épargne ({list}) : comparez plutôt les rendements et les gains en euros d\'aujourd\'hui.',
+    horizon: 'Les placements comparés n\'ont pas la même durée, en années ({list}) : les valeurs finales ne sont pas directement comparables, le gain en euros d\'aujourd\'hui l\'est.',
   },
   tmi: {
     profileOption: 'Selon le profil',
@@ -155,6 +162,7 @@ export default {
     technicalRate: 'Taux technique',
     arrearsFee: 'Frais sur arrérages',
     spouseCeiling: 'Plafond du conjoint disponible chaque année (mutualisation)',
+    reinvestSavings: 'Réinvestir les économies d\'impôt dans le PER',
   },
   actions: {
     maxDeductible: {
@@ -174,6 +182,7 @@ export default {
     cap: '0 = sans plafond. Un capital initial supérieur est accepté (livret existant).',
     boostMonths: '0 avec un taux boosté = boost permanent.',
     boostCap: '0 = sans limite.',
+    reinvestSavings: 'Chaque économie d\'impôt est versée sur le PER le mois suivant. Elle n\'est alors plus comptée à part dans la valeur nette, et ne fait pas partie de votre effort d\'épargne.',
     pfnlExemption: 'Possible si le revenu fiscal de référence est inférieur à 25 000 € (50 000 € pour un couple) : l\'impôt est alors payé l\'année suivante au lieu d\'être retenu sur les intérêts.',
     euroRate: 'Avant frais de gestion et prélèvements sociaux.',
     openingDate: 'Sert à la règle des 8 ans. Le capital initial est alors la valeur actuelle du contrat.',
@@ -223,6 +232,11 @@ export default {
     fees: 'Frais',
     taxes: 'Impôts et prélèvements sociaux',
     taxSavings: 'Économie d\'impôt',
+    reinvested: 'Dont économies d\'impôt réinvesties',
+    available: 'Capital disponible (hors économies d\'impôt)',
+    realReturn: 'Rendement réel (après inflation)',
+    presentValue: 'Gain net en euros d\'aujourd\'hui',
+    irr: { ok: '', multiple: 'non pertinent (flux alternés)', none: 'non calculable' },
     returnNet: 'Rendement annuel net',
     returnGross: 'Rendement annuel brut',
     annuity: 'Rente viagère estimée',
@@ -230,8 +244,8 @@ export default {
     annuityGross: 'Rente annuelle brute',
     annuityNet: 'Rente annuelle nette',
     annuityMonthly: 'Rente mensuelle nette',
-    annuityCalc: 'Table TGF05 (taux technique 0 %)',
-    annuityCalcValue: '{price} € par euro de rente (âge {age})',
+    annuityCalc: 'Base de calcul',
+    annuityCalcValue: 'TGF05 à 0 %, {price} € par euro de rente (âge {age})',
     capitalAlternative: 'Même part en capital, nette d\'impôt',
     annuityEstimateNote: 'Estimation sur la table réglementaire TGF05, non contractuelle : le montant réel dépend du contrat et de la table appliquée à la liquidation.',
     annuityContractNote: 'Rente calculée avec le taux de conversion saisi ; vérifiez qu\'il est garanti par votre contrat.',
@@ -252,6 +266,7 @@ export default {
     start: 'Début ({date})',
     end: 'Fin {date}',
     range: 'fourchette',
+    bandNote: 'La zone autour des courbes montre des hypothèses de rendement plus faible et plus élevé, pas une probabilité ni une garantie.',
     annuityNote: 'PER en rente : à la retraite, le capital converti en rente est cédé à l\'assureur, d\'où la chute de la courbe. Elle remonte ensuite avec le cumul des rentes perçues.',
   },
   table: {
