@@ -70,9 +70,9 @@ function duration(run: SlotResult): string {
           <template v-if="!run.result.annuity.indicative">
             <div><dt>{{ t('summary.annuityGross') }}</dt><dd>{{ f.eur(run.result.annuity.grossYearly) }}</dd></div>
             <div><dt>{{ t('summary.annuityNet') }}</dt><dd>{{ f.eur(run.result.annuity.netYearly) }}</dd></div>
-            <div>
+            <div v-if="run.result.annuity.annuityPrice !== null && run.result.annuity.tableAge !== null">
               <dt>{{ t('summary.annuityCalc') }}</dt>
-              <dd>{{ t('summary.annuityCalcValue', { n: f.num(run.result.annuity.calcYears), age: f.num(run.result.annuity.calcAge) }) }}</dd>
+              <dd>{{ t('summary.annuityCalcValue', { price: f.num(run.result.annuity.annuityPrice), age: f.num(run.result.annuity.tableAge) }) }}</dd>
             </div>
             <div v-if="run.result.annuity.guaranteedNetYearly !== null">
               <dt>{{ t('summary.annuityGuaranteed') }}</dt>
@@ -83,11 +83,16 @@ function duration(run: SlotResult): string {
               <dd class="pos">{{ f.eur(run.result.annuity.totalNet) }}</dd>
             </div>
           </template>
+          <div>
+            <dt>{{ t('summary.capitalAlternative') }}</dt>
+            <dd>{{ f.eur(run.result.annuity.capitalAlternativeNet) }}</dd>
+          </div>
           <div v-if="run.result.annuity.breakEvenAge !== null">
             <dt>{{ t('summary.breakEvenAge') }}</dt>
             <dd>{{ t('summary.ageValue', { n: f.num(run.result.annuity.breakEvenAge) }) }}</dd>
           </div>
         </dl>
+        <p class="hint">{{ run.result.annuity.estimated ? t('summary.annuityEstimateNote') : t('summary.annuityContractNote') }}</p>
       </div>
 
       <ul v-if="run.result.warnings.length" class="warnings">

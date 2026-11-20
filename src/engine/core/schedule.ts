@@ -7,6 +7,8 @@ export interface Schedule {
   deposits: number[]
   withdrawals: number[]
   earlyReleases: number[]
+  /** Déblocages anticipés du PER pour accident de la vie (fiscalité différente). */
+  accidentReleases: number[]
   /** Nombre de mouvements ponctuels hors de la période simulée (ignorés). */
   outOfRange: number
 }
@@ -17,7 +19,7 @@ export interface Schedule {
  */
 export function buildSchedule(p: SimParams, months: number): Schedule {
   const zeros = () => new Array<number>(months).fill(0)
-  const s: Schedule = { deposits: zeros(), withdrawals: zeros(), earlyReleases: zeros(), outOfRange: 0 }
+  const s: Schedule = { deposits: zeros(), withdrawals: zeros(), earlyReleases: zeros(), accidentReleases: zeros(), outOfRange: 0 }
   const start = parseYM(str(p, 'start'))
   const periodic = amount(p, 'periodicAmount')
   const yearly = str(p, 'frequency') === 'yearly'
@@ -38,6 +40,7 @@ export function buildSchedule(p: SimParams, months: number): Schedule {
     }
     if (m.kind === 'deposit') s.deposits[i] += value
     else if (m.kind === 'withdrawal') s.withdrawals[i] += value
+    else if (m.kind === 'earlyReleaseAccident') s.accidentReleases[i] += value
     else s.earlyReleases[i] += value
   }
   return s

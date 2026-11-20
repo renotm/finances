@@ -10,8 +10,8 @@
 |---|---|---|
 | 0 | Analyse du code et plan d'implémentation | terminée |
 | 1 | Moteur fiscal commun | terminée |
-| 2 | Corrections du PER | en cours |
-| 3 | Corrections de l'assurance vie | à faire |
+| 2 | Corrections du PER | terminée |
+| 3 | Corrections de l'assurance vie | en cours |
 | 4 | Corrections des livrets | à faire |
 | 5 | Cohérence des comparaisons | à faire |
 | 6 | Validation automatisée | à faire |
@@ -47,6 +47,30 @@
 **Écart constaté sur l'audit** : l'économie d'impôt de C32 vaut 4 409,01 € et non 4 259,98 € : l'audit ignorait la décote, qui s'applique après la déduction (impôt brut de 2 948 €). Le test retient la valeur calculée avec la décote.
 
 **Note d'environnement** : sous Windows, Vitest doit être lancé depuis `D:\Perso\finances` (lettre de lecteur en majuscule) ; depuis `d:\…`, le module `vitest` est chargé deux fois et toutes les suites échouent (« failed to find the current suite »).
+
+## Phase 2 : PER (terminée)
+
+| Anomalie (AUDIT.md / plan) | Correction | Test(s) |
+|---|---|---|
+| C32 économie d'impôt = versement × TMI | impôt(revenu) − impôt(revenu − déduction) avec le contexte fiscal ; TMI fixe signalée « approximative » sinon | `fiscalité réelle… économie d'impôt` (4 409,01 €), `sans contexte… approximatif` |
+| C33 déblocage réduisant la déduction | la déduction porte sur les versements effectués | `un déblocage ne réduit pas la déduction` (1 413 €) |
+| C34 sortie en capital à taux unique | barème dans la catégorie des pensions, sans abattement, système du quotient | `sortie en capital au barème avec le système du quotient` (42 440 €) |
+| C39 rente surestimée | rente = capital ÷ prix d'un euro de rente TGF05 à 0 % (tarif 1/1/2026), décalage d'âge si table non garantie ; estimation signalée non contractuelle | `rente viagère estimée sur la table TGF05` (7 tests, dont taux implicite dans la fourchette du marché) |
+| C40 espérance de vie fixe | la table donne un prix par âge de départ ; la durée de vie supposée ne sert plus qu'à l'horizon d'affichage | `prix interpolé entre deux âges` |
+| C41 abattement sur les pensions non plafonné | abattement de 10 % avec plancher et plafond du foyer, compte tenu des pensions saisies | `rente : abattement de 10 % plafonné` |
+| Plan : déblocage selon le motif | résidence principale (imposé) / accident de la vie (exonéré d'IR, prélèvements sociaux sur les gains) | `accident de la vie… résidence principale` |
+| Plan : versements après 70 ans | non déductibles depuis 2026, avertissement | `versements à partir de 70 ans` |
+| Plan : plafond nul | case « Saisir le plafond », zéro accepté, avertissement | `plafond nul saisi` |
+| Plan : reports dynamiques | champs N−1 à N−5 affichés selon leur validité à la date de début | `champs de report visibles selon leur validité` |
+| Plan : mutualisation | plafond du conjoint après les reports | `mutualisation` |
+| Plan : âges des rentes | fraction imposable selon l'âge révolu (69,5 ans → 40 %) | `fraction imposable selon l'âge révolu` |
+| Plan : comparaison rente / capital | comparaison au capital net d'impôt de la même part | `comparaison avec la même part prise en capital` |
+
+**Tests existants remplacés** : les 6 tests de la rente qui figeaient l'ancienne méthode (annuité certaine sur l'espérance de vie, taux technique 0,5 %) ont été réécrits avec des attendus recalculés à partir des prix publiés de la table TGF05. L'ancien test « taux de conversion » attendait un abattement de 10 % appliqué sans plafond ; il attend désormais 10 % sans plancher (pensions inconnues), conformément à l'hypothèse documentée.
+
+**Limites restantes** : âge du conjoint inconnu pour la mutualisation ; interaction capital / rente la même année non cumulée ; table TGF05 disponible seulement à taux technique 0 % et pour les âges 55 à 80 ans.
+
+91 tests passent, build OK.
 
 ## Journal
 

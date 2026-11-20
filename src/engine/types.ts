@@ -1,7 +1,8 @@
 /** Mois de l'année au format 'YYYY-MM'. */
 export type YearMonth = string
 
-export type MovementKind = 'deposit' | 'withdrawal' | 'earlyRelease'
+/** earlyRelease : déblocage anticipé du PER pour la résidence principale ; earlyReleaseAccident : pour un accident de la vie. */
+export type MovementKind = 'deposit' | 'withdrawal' | 'earlyRelease' | 'earlyReleaseAccident'
 
 /** Versement ou retrait ponctuel, effectué le 1er du mois indiqué. */
 export interface Movement {
@@ -123,15 +124,20 @@ export interface Annuity {
   /** Rente annuelle après frais sur arrérages, avant impôts. */
   grossYearly: number
   netYearly: number
-  /** Durée de rente retenue pour le calcul (années après le départ) et âge correspondant. */
-  calcYears: number
-  calcAge: number
+  /** Vrai si le montant est une estimation (table de mortalité), faux s'il vient d'un taux de conversion contractuel saisi. */
+  estimated: boolean
+  /** Prix d'un euro de rente retenu (table TGF05), ou null pour un taux de conversion. */
+  annuityPrice: number | null
+  /** Âge équivalent utilisé dans la table (âge de départ, diminué du décalage si la table n'est pas garantie). */
+  tableAge: number | null
   /** Rente nette annuelle avec une table garantie à la souscription (si la table ne l'est pas). */
   guaranteedNetYearly: number | null
   /** Âge de fin de simulation et total des rentes nettes perçues jusque-là (null si indicative). */
   endAge: number | null
   totalNet: number | null
-  /** Âge à partir duquel les rentes nettes cumulées dépassent le capital converti. */
+  /** Capital net d'impôt qu'aurait donné la même part en sortie en capital (base de comparaison). */
+  capitalAlternativeNet: number
+  /** Âge à partir duquel les rentes nettes cumulées dépassent ce capital net. */
   breakEvenAge: number | null
 }
 

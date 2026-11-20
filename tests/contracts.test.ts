@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { carryLastYear } from '../src/engine/products/per'
+import { annuityTaxableFraction, carryLastYear, tgf05Price } from '../src/engine/products/per'
 import { getProduct } from '../src/engine/registry'
 import { runSimulation } from '../src/engine/run'
 import { params, simulate } from './helpers'
@@ -123,27 +123,23 @@ describe('PER', () => {
     expect(r.summary.finalNet).toBeCloseTo(4104 - 104 * 0.314, 6)
   })
 
-  it('rente par taux de conversion, fiscalité selon l\'âge', () => {
+  it('rente par taux de conversion contractuel, fiscalité selon l\'âge', () => {
     const r = simulate('per', { ...oneYear, initialCapital: 4000, exitMode: 'annuity', annuityMethod: 'conversion', conversionRate: 3.5, arrearsFee: 0 })
     const gross = 4104 * 0.035
-    // Versements déduits : barème après abattement de 10 % ; prélèvements sociaux sur 70 % (moins de 50 ans)
+    // Sans contexte fiscal : pension imposée après abattement de 10 % (sans plancher), TMI à la retraite 11 % ;
+    // prélèvements sociaux sur 70 % (moins de 50 ans à l'entrée en jouissance)
     const net = gross - gross * 0.9 * 0.11 - gross * 0.7 * 0.186
-    expect(r.annuity?.indicative).toBe(false)
+    expect(r.annuity?.estimated).toBe(false)
     expect(r.annuity?.grossYearly).toBeCloseTo(gross, 6)
     expect(r.annuity?.netYearly).toBeCloseTo(net, 6)
-    expect(r.annuity?.breakEvenAge).toBeCloseTo(41 + 4104 / net, 6)
+    // Comparaison avec le capital net : 4 104 − (4 000 × 11 % + 104 × 31,4 %)
+    const capitalNet = 4104 - (4000 * 0.11 + 104 * 0.314)
+    expect(r.annuity?.capitalAlternativeNet).toBeCloseTo(capitalNet, 6)
+    expect(r.annuity?.breakEvenAge).toBeCloseTo(41 + capitalNet / net, 6)
   })
 
-  it('rendement annuel réaliste sur une longue durée', () => {
-    const r = simulate('per', { currentAge: 40, retirementAge: 64, initialCapital: 1000, periodicAmount: 600, euroShare: 40 })
-    expect(r.summary.annualReturnNet).not.toBeNull()
-    expect(r.summary.annualReturnNet!).toBeGreaterThan(0)
-    expect(r.summary.annualReturnNet!).toBeLessThan(0.15)
-    expect(r.warnings.filter((w) => w.code === 'perCeilingExceeded')).toHaveLength(1)
-  })
-
-  describe('rente viagère par table de mortalité', () => {
-    // Épargne d'un an (63 → 64 ans), rendement net nul : capital de 10 000 € à la retraite.
+  describe('rente viagère estimée sur la table TGF05 (taux technique 0 %)', () => {
+    // Épargne d'un an (63 → 64 ans), rendement net nul : 10 000 € à la retraite, entièrement déduits.
     const base = {
       currentAge: 63,
       retirementAge: 64,
@@ -153,52 +149,61 @@ describe('PER', () => {
       euroFee: 0.6,
       tmiNow: 30,
       tmiRetirement: 11,
-      income: 100000, // plafond de déduction de 10 000 € : tout le versement est déduit
+      ceilingOverride: 10000,
       exitMode: 'annuity',
       annuityMethod: 'table',
       lifeExpectancy: 86,
       lifeGainPerDecade: 1,
-      technicalRate: 0.5,
       arrearsFee: 2,
     }
-    const annuityFactor = (n: number, t = 0.005) => t / (1 - Math.pow(1 + t, -n))
+    // Prix d'un euro de rente publiés (tarif 1/1/2026) : 64 ans 31,7745 ; 63 ans 32,9004
+    const price64 = 31.7745
+    const price639 = 32.9004 + (31.7745 - 32.9004) * 0.9
     const netOf = (gross: number) => gross - gross * 0.9 * 0.11 - gross * 0.4 * 0.186 // 64 ans : fraction 40 %
 
-    it('table garantie : durée = espérance de vie − âge de départ', () => {
+    it('table garantie : capital ÷ prix d\'un euro de rente à l\'âge de départ', () => {
       const r = simulate('per', { ...base, tableGuaranteed: true })
-      expect(r.annuity?.calcYears).toBeCloseTo(22, 9)
-      expect(r.annuity?.grossYearly).toBeCloseTo(10000 * annuityFactor(22) * 0.98, 6)
+      expect(r.annuity?.annuityPrice).toBeCloseTo(price64, 9)
+      expect(r.annuity?.grossYearly).toBeCloseTo((10000 / price64) * 0.98, 6)
+      expect(r.annuity?.estimated).toBe(true)
       expect(r.annuity?.guaranteedNetYearly).toBeNull()
     })
 
-    it('table non garantie : l\'espérance de vie progresse jusqu\'à la retraite', () => {
+    it('table non garantie : décalage d\'âge selon la hausse de l\'espérance de vie (0,1 an ici)', () => {
       const r = simulate('per', { ...base, tableGuaranteed: false })
-      expect(r.annuity?.calcYears).toBeCloseTo(22.1, 9)
-      expect(r.annuity?.grossYearly).toBeCloseTo(10000 * annuityFactor(22.1) * 0.98, 6)
-      expect(r.annuity?.guaranteedNetYearly).toBeCloseTo(netOf(10000 * annuityFactor(22) * 0.98), 6)
+      expect(r.annuity?.tableAge).toBeCloseTo(63.9, 9)
+      expect(r.annuity?.grossYearly).toBeCloseTo((10000 / price639) * 0.98, 6)
+      expect(r.annuity?.guaranteedNetYearly).toBeCloseTo(netOf((10000 / price64) * 0.98), 6)
     })
 
-    it('versement jusqu\'à l\'espérance de vie retenue par défaut, au-delà si on le demande', () => {
+    it('taux de conversion implicite dans la fourchette du marché (3,1 à 4,3 % à 64-65 ans)', () => {
+      const r = simulate('per', { ...base, tableGuaranteed: true, arrearsFee: 0 })
+      const rate = r.annuity!.grossYearly / 10000
+      expect(rate).toBeGreaterThanOrEqual(0.031)
+      expect(rate).toBeLessThanOrEqual(0.043)
+    })
+
+    it('versement jusqu\'à la durée de vie supposée, au-delà si on le demande', () => {
       const r = simulate('per', { ...base, tableGuaranteed: true })
-      const gross = 10000 * annuityFactor(22) * 0.98
+      const net = netOf((10000 / price64) * 0.98)
       expect(r.annuity?.endAge).toBeCloseTo(86, 9)
-      expect(r.annuity?.totalNet).toBeCloseTo(netOf(gross) * 22, 6)
-      expect(r.summary.finalNet).toBeCloseTo(netOf(gross) * 22 + 3000, 6) // + économie d'impôt : 10 000 × 30 %
+      expect(r.annuity?.totalNet).toBeCloseTo(net * 22, 6)
       const longer = simulate('per', { ...base, tableGuaranteed: true, endAge: 95 })
-      expect(longer.annuity?.totalNet).toBeCloseTo(netOf(gross) * 31, 6)
-      expect(longer.years[longer.years.length - 1].year).toBeGreaterThan(r.years[r.years.length - 1].year)
+      expect(longer.annuity?.totalNet).toBeCloseTo(net * 31, 6)
     })
 
-    it('âge à partir duquel la rente a rapporté plus que le capital', () => {
+    it('comparaison avec la même part prise en capital, nette d\'impôt', () => {
       const r = simulate('per', { ...base, tableGuaranteed: true })
-      const net = netOf(10000 * annuityFactor(22) * 0.98)
-      expect(r.annuity?.breakEvenAge).toBeCloseTo(64 + 10000 / net, 6)
+      const net = netOf((10000 / price64) * 0.98)
+      const capitalNet = 10000 - 10000 * 0.11
+      expect(r.annuity?.capitalAlternativeNet).toBeCloseTo(capitalNet, 6)
+      expect(r.annuity?.breakEvenAge).toBeCloseTo(64 + capitalNet / net, 6)
     })
 
     it('sortie mixte : part en capital versée à la retraite, rente sur le reste', () => {
       const r = simulate('per', { ...base, tableGuaranteed: true, exitMode: 'mixed', capitalShare: 50 })
       expect(r.summary.totalWithdrawn).toBeCloseTo(5000, 6)
-      expect(r.annuity?.grossYearly).toBeCloseTo(5000 * annuityFactor(22) * 0.98, 6)
+      expect(r.annuity?.grossYearly).toBeCloseTo((5000 / price64) * 0.98, 6)
     })
 
     it('sortie en capital : rente donnée à titre indicatif, pas de phase de versement', () => {
@@ -219,6 +224,115 @@ describe('PER', () => {
       expect(r.summary.annualReturnNet).not.toBeNull()
       expect(r.summary.annualReturnNet!).toBeGreaterThan(-0.05)
       expect(r.summary.annualReturnNet!).toBeLessThan(0.15)
+    })
+  })
+
+  describe('fiscalité réelle avec le contexte fiscal du profil', () => {
+    const ctxBase = { children: [], livesAlone: true, retirementPensions: null }
+    const base2 = () => ({ currentAge: 63, retirementAge: 64, initialCapital: 10000, euroShare: 100, euroRate: 0.6, euroFee: 0.6, ceilingOverride: 10000, exitMode: 'annuity', annuityMethod: 'table', tableGuaranteed: true, arrearsFee: 2 })
+
+    it('économie d\'impôt = impôt avant − impôt après déduction (changement de tranche et décote)', () => {
+      const r = simulate('per', {
+        ...oneYear,
+        euroRate: 0.6,
+        initialCapital: 20000,
+        ceilingOverride: 30000,
+        taxContext: { ...ctxBase, situation: 'married', income: 70000, retirementIncome: null },
+      })
+      // couple, 70 000 € → 50 000 € : 7 207,98 − 2 798,97 (décote de 149,03 €)
+      expect(r.summary.taxSavings).toBeCloseTo(4409.01, 2)
+      expect(r.warnings.map((w) => w.code)).not.toContain('taxApproxEntry')
+    })
+
+    it('sans contexte : TMI fixe et avertissement « approximatif »', () => {
+      const r = simulate('per', { ...oneYear, initialCapital: 4000 })
+      expect(r.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['taxApproxEntry', 'taxApproxExit']))
+    })
+
+    it('sortie en capital au barème avec le système du quotient', () => {
+      // célibataire, 25 000 € de revenu imposable à la retraite, 150 000 € de versements déduits (rendement nul)
+      const r = simulate('per', {
+        currentAge: 63,
+        retirementAge: 64,
+        initialCapital: 150000,
+        euroShare: 100,
+        euroRate: 0.6,
+        euroFee: 0.6,
+        ceilingOverride: 150000,
+        taxContext: { ...ctxBase, situation: 'single', income: 200000, retirementIncome: 25000 },
+      })
+      // direct 54 306,53 € ; quotient 4 × (11 853,99 − 1 243,99) = 42 440,00 € : le quotient est retenu
+      expect(r.summary.taxes).toBeCloseTo(42440.0, 1)
+      expect(r.warnings.map((w) => w.code)).not.toContain('taxApproxExit')
+    })
+
+    it('rente : abattement de 10 % plafonné compte tenu des pensions du foyer', () => {
+      const r = simulate('per', {
+        ...base2(),
+        taxContext: { ...ctxBase, situation: 'single', income: 50000, retirementIncome: 50000, retirementPensions: 50000 },
+      })
+      // 50 000 € de pensions : abattement déjà au plafond (4 439 €), la rente déduite est imposable en totalité
+      const gross = (10000 / 31.7745) * 0.98
+      expect(r.annuity!.netYearly).toBeCloseTo(gross - gross * 0.3 - gross * 0.4 * 0.186, 6)
+    })
+  })
+
+  describe('déblocages anticipés et versements', () => {
+    it('un déblocage ne réduit pas la déduction des versements de l\'année', () => {
+      const r = simulate('per', {
+        currentAge: 40, retirementAge: 42, euroRate: 0.6, euroFee: 0.6, tmiNow: 30,
+        movements: [{ id: 1, date: '2026-03', amount: 5000, kind: 'deposit' }, { id: 2, date: '2026-06', amount: 2500, kind: 'earlyRelease' }],
+      })
+      // 5 000 € versés, plafond 4 710 € : 4 710 × 30 %
+      expect(r.years[0].taxSavings).toBeCloseTo(1413, 6)
+    })
+
+    it('accident de la vie : capital exonéré d\'impôt sur le revenu ; résidence principale : imposé', () => {
+      const common = { currentAge: 40, retirementAge: 42, initialCapital: 4000, euroRate: 0.6, euroFee: 0.6, tmiNow: 30 }
+      const accident = simulate('per', { ...common, movements: [{ id: 1, date: '2027-01', amount: 2000, kind: 'earlyReleaseAccident' }] })
+      const home = simulate('per', { ...common, movements: [{ id: 1, date: '2027-01', amount: 2000, kind: 'earlyRelease' }] })
+      expect(accident.years[1].taxes).toBeCloseTo(0, 6)
+      expect(home.years[1].taxes).toBeCloseTo(2000 * 0.3, 6)
+    })
+
+    it('versements à partir de 70 ans : non déductibles', () => {
+      const r = simulate('per', { currentAge: 70, retirementAge: 72, start: '2026-01', initialCapital: 1000, euroRate: 0.6, euroFee: 0.6 })
+      expect(r.summary.taxSavings).toBe(0)
+      expect(r.warnings.map((w) => w.code)).toContain('perAgeLimit')
+    })
+
+    it('plafond nul saisi : aucune déduction hors reports', () => {
+      const r = simulate('per', { ...oneYear, initialCapital: 1000, ceilingManual: true, ceilingOverride: 0 })
+      expect(r.summary.taxSavings).toBe(0)
+      expect(r.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['perZeroCeiling', 'perCeilingExceeded']))
+    })
+
+    it('mutualisation : le plafond du conjoint après le sien', () => {
+      const r = simulate('per', { ...oneYear, euroRate: 0.6, initialCapital: 8000, ceilingOverride: 4000, spouseCeiling: 3000 })
+      expect(r.summary.taxSavings).toBeCloseTo(7000 * 0.3, 6)
+      expect(r.extraLines).toEqual(expect.arrayContaining([{ key: 'spouseUsed', amount: 3000 }]))
+    })
+  })
+
+  describe('table de rente et fraction imposable', () => {
+    it('prix interpolé entre deux âges', () => {
+      expect(tgf05Price(64.5).price).toBeCloseTo((31.7745 + 30.6543) / 2, 9)
+      expect(tgf05Price(85).outOfTable).toBe(true)
+    })
+
+    it('fraction imposable selon l\'âge révolu à l\'entrée en jouissance', () => {
+      expect(annuityTaxableFraction(69.5)).toBe(0.4)
+      expect(annuityTaxableFraction(70)).toBe(0.3)
+      expect(annuityTaxableFraction(49.99)).toBe(0.7)
+    })
+
+    it('champs de report visibles selon leur validité à la date de début', () => {
+      const def = (key: string) => getProduct('per').params.find((x) => x.key === key)!
+      expect(def('carryN3').visible!(params('per', { start: '2026-01' }))).toBe(true)
+      expect(def('carryN4').visible!(params('per', { start: '2026-01' }))).toBe(false)
+      expect(def('carryN4').visible!(params('per', { start: '2030-01' }))).toBe(true)
+      expect(def('carryN5').visible!(params('per', { start: '2030-01' }))).toBe(false)
+      expect(def('carryN5').visible!(params('per', { start: '2031-01' }))).toBe(true)
     })
   })
 

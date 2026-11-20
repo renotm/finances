@@ -148,37 +148,42 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 | Frais sur versements, frais de gestion | 0 % ; 0,6 %/an |
 | Répartition fonds euros / UC + profil de risque | comme 4.3 |
 | Mode de sortie | capital / rente / mixte (% en capital) |
-| Prélèvements sociaux sur les gains | 18,6 % (taux 2026 ; l'application au PER assurantiel est débattue, d'où le paramètre) |
+| Prélèvements sociaux sur les gains | 18,6 % (taux 2026, applicable à toutes les sorties de PER selon Service-Public) |
+| Plafond saisi depuis l'avis d'impôt | case « Saisir le plafond » ; un plafond **nul** est accepté |
+| Plafond du conjoint (mutualisation, case 6QR) | 0 € |
+| Contexte fiscal (`taxContext`) | transmis par le profil : situation, enfants, revenus pendant l'épargne et à la retraite, pensions (voir 4.7) |
 
 **Paramètres de la rente** (visibles dans les paramètres principaux dès que la sortie n'est pas « Capital »)
 | Paramètre | Défaut |
 |---|---|
-| Méthode de calcul | table de mortalité / taux de conversion |
-| Espérance de vie actuelle (âge), pour une personne arrivée à la retraite | 86 ans (moyenne hommes/femmes INSEE 2025 à 60 ans : 23,9 et 27,9 ans de vie restante) |
+| Méthode de calcul | table TGF05 (estimation) / taux de conversion du contrat |
 | Table de mortalité garantie à la souscription | non |
-| Hausse de l'espérance de vie | +1 an par décennie (tendance INSEE 2000-2025) |
-| Taux technique | 0,5 % |
+| Hausse de l'espérance de vie (décalage d'âge si la table n'est pas garantie) | +1 an par décennie (tendance INSEE 2000-2025) |
 | Frais sur arrérages | 2 % de chaque rente |
 | Taux de conversion (méthode « taux de conversion ») | 3,5 % du capital par an (fourchette constatée à 64 ans : 3,1 à 4,3 %) |
-| Âge de fin de simulation (hypothèse de durée de vie) | 0 = l'espérance de vie retenue pour le calcul (86 ans, ou plus si la table n'est pas garantie) |
+| Durée de vie supposée (horizon d'affichage) | 86 ans (moyenne hommes/femmes INSEE 2025) |
+| Âge de fin de simulation | 0 = durée de vie supposée |
 
 **Règles**
 - La durée de la simulation est l'âge de départ moins l'âge actuel (calculée, pas saisie).
-- **Retraits interdits avant la retraite**, sauf **déblocage anticipé « résidence principale »** (option sur un mouvement ponctuel).
-- **Économie d'impôt à l'entrée** (si versements déduits) : versement × TMI actuelle, l'année du versement. Le capital initial compte comme un versement de la première année.
-- **Déblocage anticipé** : imposé comme une sortie en capital, mais avec la TMI actuelle.
+- **Retraits interdits avant la retraite**, sauf **déblocages anticipés** (mouvements ponctuels) : « résidence principale » ou « accident de la vie ».
+- **Économie d'impôt à l'entrée** (si versements déduits) : avec un contexte fiscal, **impôt(revenu) − impôt(revenu − déduction)** l'année du versement (barème, quotient familial, décote, composition du foyer de l'année) ; sans contexte, déduction × TMI, signalée comme approximative. Le versement initial compte comme un versement de la première année.
+- **Versements à partir de 70 ans** : non déductibles depuis 2026 (LF 2026 art. 9), avec un avertissement.
+- **Déblocage anticipé** : la déduction des versements de l'année n'est pas réduite. « Résidence principale » : imposé comme une sortie en capital (barème avec système du quotient sur les versements déduits, PFU sur les gains), avec les revenus actuels. « Accident de la vie » : capital exonéré d'impôt sur le revenu, gains soumis aux seuls prélèvements sociaux.
 - **Plafond de déduction** (salariés) : 10 % des revenus professionnels nets, avec un plancher de 4 710 € et un plafond de 37 680 € (valeurs 2026, calculées sur le PASS 2025 de 47 100 €). Sans revenus renseignés, on applique le plancher. Un **avertissement** s'affiche si les versements de l'année dépassent le plafond ; la part au-delà ne génère pas d'économie d'impôt. Le plafond figurant sur l'avis d'imposition est le chiffre qui fait foi : un champ permet de le saisir directement.
 - Report des plafonds non utilisés des années précédentes : voir 4.4.4.
-- Hors périmètre : plafonds des indépendants (TNS), mutualisation dans le couple.
+- **Mutualisation** : le plafond du conjoint (saisi, par an) s'impute après le plafond de l'année et les reports ; plus utilisée à partir de l'année suivant les 70 ans du titulaire (l'âge du conjoint n'est pas connu).
+- Hors périmètre : plafonds des indépendants (TNS).
 - **Sortie en capital** :
-  - versements déduits : impôt sur le revenu au barème (TMI à la retraite), pas de prélèvements sociaux ;
+  - versements déduits : impôt sur le revenu dans la catégorie des pensions, **sans abattement de 10 %**, au barème avec le **système du quotient** (minimum entre imposition directe et quotient), avec le revenu imposable du foyer à la retraite ; sans ce revenu, TMI à la retraite (approximation signalée) ; pas de prélèvements sociaux ;
   - gains : flat tax (12,8 % + prélèvements sociaux) ;
   - versements non déduits : exonérés, seuls les gains sont imposés.
 - **Sortie en rente** : voir 4.4.1 (calcul) et 4.4.2 (phase de versement).
-- **Fiscalité de la rente** (inchangée) :
-  - versements déduits : rente imposée au barème après abattement de 10 %, + prélèvements sociaux sur une fraction selon l'âge (régime des rentes viagères à titre onéreux) ;
-  - versements non déduits : seule une fraction de la rente est imposée, selon l'âge au premier versement ;
-  - fraction imposable selon l'âge au premier versement : 70 % avant 50 ans, 50 % de 50 à 59 ans, 40 % de 60 à 69 ans, 30 % à 70 ans et plus.
+- **Fiscalité de la rente** :
+  - versements déduits : rente imposée comme une pension, après abattement de 10 % **plafonné** compte tenu des pensions du foyer (sans pensions renseignées : 10 % sans plancher, limité au plafond) ; prélèvements sociaux sur la fraction imposable selon l'âge ;
+  - versements non déduits : rente viagère à titre onéreux, seule une fraction est imposée ;
+  - fraction imposable selon l'âge **révolu** à l'entrée en jouissance : 70 % avant 50 ans, 50 % de 50 à 59 ans, 40 % de 60 à 69 ans, 30 % à 70 ans et plus ;
+  - impôt calculé au barème (impôt supplémentaire sur le revenu à la retraite) si le contexte fiscal est complet, sinon à la TMI à la retraite (approximation signalée).
 - **Net du PER** = capital net perçu à la retraite + total des rentes nettes perçues jusqu'à l'âge de fin de simulation + économies d'impôt cumulées à l'entrée.
 
 #### 4.4.1 Calcul de la rente
@@ -187,15 +192,12 @@ Les assureurs calculent la rente avec une **table de mortalité réglementaire**
 - la **table en vigueur à la souscription**, si le contrat la garantit : les révisions ultérieures ne s'appliquent pas, ce qui est plus favorable ;
 - la **table en vigueur à la liquidation** sinon : la rente baisse si l'espérance de vie a augmenté entre-temps.
 
-**Durée retenue** (n, en années après le départ) :
-- table garantie : n = espérance de vie actuelle − âge de départ (86 − 64 = 22 ans) ;
-- table non garantie : n = espérance de vie actuelle + hausse de l'espérance de vie × années jusqu'à la retraite − âge de départ (+1 an par décennie, à 40 ans pour un départ à 64 ans : 86 + 2,4 − 64 = 24,4 ans) ;
-- l'espérance de vie à saisir est celle d'une personne **arrivée à l'âge de la retraite**, plus élevée que l'espérance de vie à la naissance ; une aide sous le champ le précise ;
-- si l'âge de départ dépasse l'espérance de vie saisie, la durée est ramenée à 1 an et un avertissement s'affiche.
+**Méthode « table TGF05 »** (corrige l'anomalie C39 de l'audit, qui surestimait la rente de 10 à 50 %) :
+- rente annuelle = capital converti ÷ **prix d'un euro de rente** × (1 − frais sur arrérages), avec le prix publié pour la table TGF05 à taux technique 0 % (tarif du 1/1/2026, âges 55 à 80, interpolé entre deux âges entiers ; hors table, prix de l'âge le plus proche avec un avertissement). À 64 ans : 31,7745, soit 3,15 % du capital par an, dans la fourchette du marché ;
+- table non garantie : les tables appliquées à une liquidation future refléteront la hausse de l'espérance de vie, modélisée par un **décalage d'âge** (âge de la table = âge de départ − hausse × années jusqu'à la retraite), hypothèse ;
+- la rente affichée est une **estimation non contractuelle** ; la synthèse le précise, ainsi que le prix et l'âge de table retenus, et la rente qu'on aurait eue avec une table garantie.
 
-**Méthode « table de mortalité »** :
-- rente annuelle = capital converti × t / (1 − (1 + t)^−n) × (1 − frais sur arrérages), avec t le taux technique (si t = 0 : capital converti / n) ;
-- la synthèse affiche la durée retenue et, si la table n'est pas garantie, la rente qu'on aurait eue avec une table garantie, pour montrer l'effet de ce choix.
+**Comparaison avec le capital** : la synthèse affiche le capital **net d'impôt** qu'aurait donné la même part en sortie en capital, et l'âge à partir duquel les rentes nettes cumulées le dépassent.
 
 **Méthode « taux de conversion »** (devis d'assureur) :
 - rente annuelle = capital converti × taux de conversion × (1 − frais sur arrérages).
@@ -206,7 +208,7 @@ La rente est **fixe** (même montant chaque année). Le capital converti est la 
 
 #### 4.4.2 Phase de versement
 
-La simulation continue après la retraite, **jusqu'à l'âge de fin de simulation**, une hypothèse de durée de vie indépendante du calcul de la rente. Par défaut, c'est l'espérance de vie retenue pour le calcul (exemple : 86 + 2,4 = 88,4 ans, soit 88 ans et 5 mois) ; l'utilisateur peut saisir un autre âge pour voir le cas d'une vie plus courte ou plus longue.
+La simulation continue après la retraite, **jusqu'à l'âge de fin de simulation**, une hypothèse de durée de vie indépendante du calcul de la rente. Par défaut, c'est la durée de vie supposée (86 ans) ; l'utilisateur peut saisir un autre âge pour voir le cas d'une vie plus courte ou plus longue. L'impôt sur la rente est recalculé chaque année avec la composition du foyer de l'année.
 - Rentes versées chaque mois (1/12 de la rente annuelle), imposées selon les règles ci-dessus.
 - **Graphique** : après la retraite, la courbe du PER montre le **cumul perçu**, qui augmente au fil des rentes : en vue brute, capital versé à la retraite + rentes brutes cumulées ; en vue nette, capital net + rentes nettes cumulées + économies d'impôt. On n'affiche pas de « capital restant », qui tomberait à 0 à l'espérance de vie alors que la rente continue. La courbe chute donc à la retraite (le capital converti est cédé à l'assureur) : une note sous le graphique l'explique.
 - **Tableau** : pour les années de versement, colonnes rente brute, impôts et prélèvements, rente nette, cumul brut, cumul net.
@@ -235,11 +237,10 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 | Paramètre | Défaut |
 |---|---|
 | Plafond annuel (avis d'impôt), **hors report** | 0 = calculé à partir des revenus (10 %, de 4 710 € à 37 680 €), sinon le plancher. Remplace le champ actuel « Plafond de déduction (avis d'impôt) », dont l'aide précise désormais qu'il ne faut pas y inclure les plafonds non utilisés |
-| Plafond non utilisé de l'année N−1 | 0 € |
-| Plafond non utilisé de l'année N−2 | 0 € |
-| Plafond non utilisé de l'année N−3 | 0 € |
+| Plafonds non utilisés des années N−1 à N−5 | 0 € |
 
 - N est l'année de la date de début ; les libellés affichent les vraies années (exemple pour un début en 2026 : « non utilisé en 2025 », « en 2024 », « en 2023 »).
+- Seuls les champs encore utilisables à la date de début s'affichent : N−1 à N−3 jusqu'en 2029, N−4 à partir de 2030 (plafond 2026), N−5 à partir de 2031 (BOFiP : report « en avant » sur 5 ans pour les plafonds nés à partir de 2026).
 - Un petit bouton **« Estimer »**, sur la ligne du premier de ces trois champs, les remplit avec le plafond annuel courant, pour le cas fréquent de quelqu'un qui n'a jamais versé sur un PER. L'aide indique que l'avis d'impôt fait foi.
 
 **Calcul, chaque année civile de la phase d'épargne**
@@ -261,7 +262,7 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 - Un avertissement si des plafonds non utilisés **saisis par l'utilisateur** expirent sans avoir servi, avec le montant perdu. Les plafonds de l'année non utilisés pendant la simulation ne déclenchent pas d'avertissement : pour un épargnant qui verse moins que son plafond, il se répéterait chaque année sans rien apprendre.
 - L'avertissement de dépassement compare désormais les versements au plafond disponible, report compris.
 
-**Hors périmètre** : mutualisation des plafonds dans le couple, plafonds des indépendants (TNS).
+**Hors périmètre** : plafonds des indépendants (TNS). La mutualisation dans le couple est traitée en 4.4.
 
 ### 4.5 Profils de risque des unités de compte (hypothèses, modifiables)
 
@@ -453,7 +454,7 @@ tests/           tests Vitest du moteur
 - Les valeurs par défaut ont été vérifiées le 20/11/2026 auprès de sites spécialisés, pas de textes officiels. À revoir à chaque révision des taux (Livret A : 1er février et 1er août).
 - Le taux boosté du Bourso+ diffère selon les sources (2,10 % ou 2,50 % avec l'offre Metal) : il est laissé à 0 par défaut, l'utilisateur saisit son offre.
 - Les rendements et écarts des profils de risque UC (4.5) sont des hypothèses à valider.
-- Le PER assurantiel est-il à 17,2 % ou 18,6 % de prélèvements sociaux ? Débattu ; 18,6 % par défaut, prudent.
+- Prélèvements sociaux du PER : 18,6 % sur toutes les sorties depuis 2026, confirmé par Service-Public (A18841).
 - Un relèvement du plafond du Livret A en 2027 a été évoqué par une source isolée, non confirmée : 22 950 € conservé.
 - Une proposition de rendre la liquidation du PER obligatoire à l'âge légal a été évoquée, sans valeur de loi à ce jour : non prise en compte.
 - Barème de l'impôt (4.7) : celui de 2026 sur les revenus 2025. Le barème 2027 (revenus 2026) sera fixé par la loi de finances 2027, en discussion ; une source évoque un plafond du quotient familial porté à 1 845 € par demi-part, non confirmé : 1 807 € conservé.

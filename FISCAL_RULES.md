@@ -61,6 +61,14 @@ Le profil transmet aux colonnes : situation, enfants (dates de naissance, rattac
 - Déblocage anticipé « résidence principale » : même fiscalité qu'une sortie en capital. « Accidents de la vie » : capital exonéré d'impôt sur le revenu, gains soumis aux seuls prélèvements sociaux — concordante.
 - Montant de la rente : table TGF05 à taux technique 0 %, prix d'un euro de rente selon l'âge (tarif du 1/1/2026, Guide de la taxe) — concordante ; projection pour une liquidation future : décalage d'âge selon la hausse de l'espérance de vie — **hypothèse**.
 
+**Hypothèses de modélisation du PER (phase 2)**
+- Les versements sont déductibles l'année de leur versement, dans l'ordre : plafond de l'année, reports du plus ancien au plus récent, plafond du conjoint. L'économie d'impôt est comptée au 31 décembre de l'année (elle réduit en réalité l'impôt payé l'année suivante).
+- Le plafond annuel est supposé constant pendant toute la phase d'épargne.
+- Mutualisation : l'âge du conjoint n'étant pas connu, elle s'arrête l'année suivant les 70 ans du titulaire.
+- Pensions du foyer à la retraite non renseignées : l'abattement de 10 % s'applique à la rente sans plancher (le plancher est supposé absorbé par les autres pensions), dans la limite du plafond du foyer.
+- Sortie mixte : la part en capital et la première année de rente sont imposées séparément, chacune par rapport au revenu imposable à la retraite (l'interaction des deux la même année n'est pas cumulée).
+- Comparaison rente / capital : la part convertie est comparée au capital net qu'elle aurait donné en sortie en capital, impôt calculé de la même manière.
+
 ## 4. Assurance vie (règles appliquées en phase 3)
 - Primes versées depuis le 27/09/2017 : avant 8 ans, 12,8 % ; après 8 ans, 7,5 % sur la part des produits correspondant à 150 000 € de primes nettes, 12,8 % au-delà — officielle (Bercy infos).
 - Primes versées avant le 27/09/2017 : prélèvement libératoire de 35 % (moins de 4 ans), 15 % (4 à 8 ans), 7,5 % (après 8 ans) — officielle (Bercy infos).
