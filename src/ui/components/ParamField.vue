@@ -10,7 +10,7 @@ const emit = defineEmits<{ update: [key: string, value: ParamValue]; patch: [pat
 const { t, te } = useI18n()
 const f = useFormat()
 
-const label = computed(() => t(`params.${props.def.key}`, props.def.labelParams?.(props.params) ?? {}))
+const label = computed(() => t(props.def.labelKey ?? `params.${props.def.key}`, props.def.labelParams?.(props.params) ?? {}))
 
 const actions = computed(() => (props.def.actions ?? []).filter((a) => a.visible(props.params)))
 

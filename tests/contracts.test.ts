@@ -290,14 +290,25 @@ describe('PER', () => {
       expect(carryLastYear(2026)).toBe(2031)
     })
 
-    it('bouton « Utiliser le report » : versement ponctuel en décembre, sans doublon', () => {
-      const action = actionOf('periodicAmount', 'useCarryForward')
+    it('bouton « Utiliser le report » : versement initial = max déductible la 1re année', () => {
+      const action = actionOf('initialCapital', 'useCarryForward')
       expect(action.visible(params('per', {}))).toBe(false)
-      const p = params('per', { carryN1: 3000, carryN2: 2000 })
+      // Début en novembre, 100 €/mois (200 € en 2026), plafond 4 710 €, report 9 420 €
+      const p = params('per', { start: '2026-11', periodicAmount: 100, carryN1: 4710, carryN2: 4710 })
       expect(action.visible(p)).toBe(true)
-      const patch = action.apply(p)
-      expect(patch.movements).toEqual([expect.objectContaining({ date: '2026-12', amount: 5000, kind: 'deposit' })])
-      expect(action.apply({ ...p, movements: patch.movements as typeof p.movements })).toEqual({})
+      expect(action.apply(p)).toEqual({ initialCapital: 13930 })
+      // Recliquer redonne le même montant ; les versements ponctuels prévus la 1re année sont déduits
+      expect(action.apply({ ...p, initialCapital: 13930 })).toEqual({ initialCapital: 13930 })
+      const withOneOff = { ...p, movements: [{ id: 1, date: '2026-12', amount: 930, kind: 'deposit' as const }] }
+      expect(action.apply(withOneOff)).toEqual({ initialCapital: 13000 })
+    })
+
+    it('le versement initial ainsi calculé est entièrement déduit, sans dépassement', () => {
+      const p = { ...base, start: '2026-11', currentAge: 40, retirementAge: 42, periodicAmount: 100, carryN1: 4710, carryN2: 4710, ceilingOverride: 0 }
+      const r = simulate('per', { ...p, initialCapital: 13930 })
+      expect(r.years.find((y) => y.year === 2026)?.taxSavings).toBeCloseTo((13930 + 200) * 0.3, 6)
+      expect(r.warnings.map((w) => w.code)).not.toContain('perCeilingExceeded')
+      expect(r.warnings.map((w) => w.code)).not.toContain('perCarryExpired')
     })
 
     it('bouton « Estimer » : trois plafonds égaux au plafond annuel', () => {

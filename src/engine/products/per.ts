@@ -4,7 +4,7 @@ import { addMonths, iterateMonths, parseYM } from '../core/dates'
 import { amount, bool, clamp, num, pct, str } from '../core/params'
 import { Recorder } from '../core/recorder'
 import { buildSchedule } from '../core/schedule'
-import type { Movement, ParamAction, ParamDef, ParamPatch, Product, Scenario, SimParams, SimResult } from '../types'
+import type { ParamAction, ParamDef, ParamPatch, Product, Scenario, SimParams, SimResult } from '../types'
 import { pctParam, savingsDefaults, savingsParams } from './common'
 import { contractDefaults, contractParams } from './contractParams'
 
@@ -59,22 +59,30 @@ function initialCarries(p: SimParams): { origin: number; amount: number; entered
 
 const carryTotal = (p: SimParams) => CARRY_KEYS.reduce((acc, key) => acc + amount(p, key), 0)
 
-/** Bouton « Utiliser le report » : versement ponctuel du report disponible, en décembre de la première année. */
+/** Versements réguliers et ponctuels déjà prévus pendant la première année civile (hors versement initial). */
+function firstYearPlannedDeposits(p: SimParams): number {
+  const start = parseYM(str(p, 'start'))
+  const periodic = amount(p, 'periodicAmount')
+  const regular = str(p, 'frequency') === 'yearly' ? periodic : periodic * (12 - start.month + 1)
+  const oneOff = p.movements
+    .filter((m) => m.kind === 'deposit' && parseYM(m.date).year === start.year && parseYM(m.date).month >= start.month)
+    .reduce((acc, m) => acc + Math.max(0, Number(m.amount) || 0), 0)
+  return regular + oneOff
+}
+
+/** Maximum déductible la première année en versement initial : plafond + report − versements déjà prévus. */
+export function firstYearMaxInitial(p: SimParams): number {
+  return Math.max(0, Math.floor(perCeiling(p) + carryTotal(p) - firstYearPlannedDeposits(p)))
+}
+
+/** Bouton « Utiliser le report » : versement initial = maximum déductible la première année (SPEC §4.4.4). */
 export const useCarryForward: ParamAction = {
   id: 'useCarryForward',
   visible: (p) => bool(p, 'deducted') && carryTotal(p) > 0,
-  apply: (p): ParamPatch => {
-    const date = `${parseYM(str(p, 'start')).year}-12`
-    const total = Math.round(carryTotal(p))
-    const exists = p.movements.some((m) => m.kind === 'deposit' && m.date === date && Number(m.amount) === total)
-    if (exists) return {}
-    const movement: Movement = { id: Date.now(), date, amount: total, kind: 'deposit' }
-    return { movements: [...p.movements, movement] }
-  },
+  apply: (p): ParamPatch => ({ initialCapital: firstYearMaxInitial(p) }),
   hint: (p) => ({
     key: 'hint',
-    amounts: { amount: Math.round(carryTotal(p)) },
-    values: { year: parseYM(str(p, 'start')).year },
+    amounts: { amount: firstYearMaxInitial(p), carry: Math.round(carryTotal(p)) },
   }),
 }
 
@@ -128,9 +136,11 @@ export function annuityTerms(p: SimParams, converted: number, yearsToRetirement:
   return { grossYearly, guaranteedGrossYearly, calcYears, calcAge: retirementAge + calcYears, tooShort: rawYears < 1 }
 }
 
-const savings: ParamDef[] = savingsParams({ withDuration: false }).map((d) =>
-  d.key === 'periodicAmount' ? { ...d, actions: [maxDeductible, useCarryForward] } : d,
-)
+const savings: ParamDef[] = savingsParams({ withDuration: false }).map((d) => {
+  if (d.key === 'initialCapital') return { ...d, labelKey: 'params.initialDeposit', actions: [useCarryForward] }
+  if (d.key === 'periodicAmount') return { ...d, actions: [maxDeductible] }
+  return d
+})
 
 export const per: Product = {
   id: 'per',

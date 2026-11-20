@@ -32,6 +32,7 @@ export default {
     start: 'Date de début',
     durationYears: 'Durée',
     initialCapital: 'Capital initial',
+    initialDeposit: 'Versement initial',
     periodicAmount: 'Versement régulier',
     frequency: 'Fréquence des versements',
     rate: 'Taux annuel',
@@ -82,7 +83,7 @@ export default {
     },
     useCarryForward: {
       button: 'Utiliser le report',
-      hint: 'Report disponible : {amount} (versement ponctuel en décembre {year})',
+      hint: 'Max déductible la 1re année : {amount} (dont {carry} de report)',
     },
     estimateCarry: {
       button: 'Estimer',

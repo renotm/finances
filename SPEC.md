@@ -139,7 +139,7 @@ Les valeurs chiffrées par défaut sont dans le fichier de config. Elles ont ét
 |---|---|
 | Âge actuel | 40 ans |
 | Âge de départ à la retraite | 64 ans |
-| Capital initial (transfert / existant), versements, mouvements ponctuels | 0 € |
+| Versement initial (libellé du capital initial pour le PER), versements, mouvements ponctuels | 0 € |
 | Versements déduits du revenu imposable | oui |
 | TMI actuelle | 30 % |
 | TMI à la retraite | 11 % |
@@ -220,7 +220,7 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 - Plafond utilisé : celui de l'avis d'impôt s'il est saisi, sinon 10 % des revenus professionnels bornés (4 710 € à 37 680 €), sinon le plancher de 4 710 €.
 - Un clic remplit le champ « Versement régulier » : plafond ÷ 12 arrondi à l'euro inférieur en mensuel, plafond entier en annuel. Le champ reste modifiable et ne se recalcule pas tout seul si les revenus changent.
 - Le capital initial n'est pas déduit du plafond de la 1re année : s'il le fait dépasser, l'avertissement habituel s'affiche.
-- Le bouton ne tient compte que du **plafond de l'année** : les plafonds reportés sont consommés une seule fois et ne se lissent pas en versement mensuel (voir 4.4.4).
+- Le bouton ne tient compte que du **plafond de l'année** : les plafonds reportés sont consommés une seule fois et ne se lissent pas en versement mensuel ; ils passent par le versement initial (voir 4.4.4).
 
 #### 4.4.4 Report des plafonds non utilisés
 
@@ -249,10 +249,11 @@ La simulation continue après la retraite, **jusqu'à l'âge de fin de simulatio
 5. La part des versements au-delà du plafond disponible n'est pas déduite (règle actuelle, avec son avertissement).
 - Le plafond annuel est supposé constant sur toute la durée (pas d'indexation sur le PASS), comme aujourd'hui.
 
-**Bouton « Utiliser le report »**
-- Petit bouton à côté de « Max », sur la ligne du libellé « Versement régulier », visible si les versements sont déduits et si des plafonds non utilisés sont saisis.
-- Ligne d'aide : « Report disponible : 9 420 € (versement ponctuel en décembre 2026) ».
-- Un clic ajoute un **versement ponctuel** égal au total des plafonds non utilisés saisis, en décembre de la première année. Un second clic n'ajoute pas de doublon.
+**Versement initial et bouton « Utiliser le report »**
+- Pour le PER, le champ « Capital initial » s'appelle **« Versement initial »** : c'est un versement de la 1re année, déductible dans la limite du plafond disponible (le calcul ne change pas). Les autres placements gardent « Capital initial ».
+- Petit bouton **« Utiliser le report »** sur la ligne du libellé « Versement initial », visible si les versements sont déduits et si des plafonds non utilisés sont saisis.
+- Un clic **remplace** la valeur du versement initial par le **maximum déductible la 1re année** : plafond de l'année + total des plafonds non utilisés saisis − versements réguliers et ponctuels déjà prévus la 1re année, arrondi à l'euro inférieur, minimum 0. Le champ reste modifiable ; recliquer redonne le même montant.
+- Ligne d'aide : « Max déductible la 1re année : 13 930 € (dont 9 420 € de report) ». Exemple : début en novembre 2026, 100 €/mois, plafond de 4 710 €, 9 420 € de report : 4 710 + 9 420 − 200 = 13 930 €.
 
 **Affichage**
 - Carte du PER : une ligne « Plafonds reportés utilisés » avec le montant total, si elle n'est pas nulle.

@@ -34,6 +34,7 @@ const en: typeof fr = {
     start: 'Start date',
     durationYears: 'Duration',
     initialCapital: 'Initial capital',
+    initialDeposit: 'Initial deposit',
     periodicAmount: 'Regular deposit',
     frequency: 'Deposit frequency',
     rate: 'Annual rate',
@@ -84,7 +85,7 @@ const en: typeof fr = {
     },
     useCarryForward: {
       button: 'Use carry-forward',
-      hint: 'Carry-forward available: {amount} (one-off deposit in December {year})',
+      hint: 'Max deductible in year 1: {amount} (including {carry} carried forward)',
     },
     estimateCarry: {
       button: 'Estimate',

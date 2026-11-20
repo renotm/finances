@@ -44,6 +44,8 @@ export interface ParamDef {
   /** Ajuste d'autres paramètres quand celui-ci change (ex. : profil de risque → rendement par défaut). */
   onChange?: (p: SimParams) => void
   actions?: ParamAction[]
+  /** Clé de traduction du libellé, si elle diffère de `params.<key>` (ex. : « Versement initial » pour le PER). */
+  labelKey?: string
   /** Valeurs insérées dans le libellé traduit (ex. : l'année d'un plafond). */
   labelParams?: (p: SimParams) => Record<string, string | number>
 }
